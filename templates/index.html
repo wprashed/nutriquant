@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriQuant — Precision Dietary & Micronutrient Intelligence</title>
+    <!-- Google Fonts: Inter and Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="background-decorations">
+        <div class="glow-orb orb-1"></div>
+        <div class="glow-orb orb-2"></div>
+        <div class="glow-orb orb-3"></div>
+    </div>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <i data-lucide="sparkles" class="logo-icon"></i>
+                <span>NutriQuant</span>
+            </div>
+            
+            <div class="nav-links">
+                <button class="nav-tab hidden" id="tab-dashboard" data-tab="dashboard">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span>Dashboard</span>
+                </button>
+                <button class="nav-tab active" id="tab-calculator" data-tab="calculator">
+                    <i data-lucide="user-cog"></i>
+                    <span>Profile Settings</span>
+                </button>
+                <button class="nav-tab hidden" id="tab-history" data-tab="history">
+                    <i data-lucide="line-chart"></i>
+                    <span>Weight Tracker</span>
+                </button>
+                <button class="nav-tab hidden" id="tab-admin" data-tab="admin">
+                    <i data-lucide="shield"></i>
+                    <span>Admin Console</span>
+                </button>
+            </div>
+            
+            <div class="nav-auth">
+                <button class="btn-nav-auth" id="btn-show-auth">
+                    <i data-lucide="user"></i>
+                    <span id="auth-btn-text">Sign In</span>
+                </button>
+                <div class="user-greeting hidden" id="user-greeting">
+                    <span class="greeting-text">Hi, <strong id="display-username">User</strong></span>
+                    <button class="btn-logout" id="btn-logout" title="Log Out">
+                        <i data-lucide="log-out"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="app-container">
+        <!-- Tab Content: User Dashboard (Default for logged-in standard users) -->
+        <div class="tab-content-panel hidden" id="panel-dashboard">
+            <div class="dashboard-banner">
+                <h1 id="user-dashboard-greeting">Hello, User!</h1>
+                <p id="user-dashboard-welcome-msg">Let's stay on track with your nutrition and daily activity.</p>
+            </div>
+            
+            <div class="dashboard-grid">
+                <!-- Left Column: Energy Balance & Targets -->
+                <div class="dashboard-main-col">
+                    <div class="metrics-summary-card panel-card">
+                        <h3>Today's Energy Balance</h3>
+                        <div class="energy-balance-row">
+                            <!-- Circular Calorie Gauge -->
+                            <div class="calorie-progress-gauge">
+                                <svg class="progress-ring" width="160" height="160">
+                                    <circle class="progress-ring__background" stroke="rgba(255, 255, 255, 0.05)" stroke-width="10" fill="transparent" r="66" cx="80" cy="80"/>
+                                    <circle class="progress-ring__circle" id="user-calorie-ring" stroke="url(#user-calorie-grad)" stroke-width="10" stroke-dasharray="415" stroke-dashoffset="415" fill="transparent" r="66" cx="80" cy="80"/>
+                                    <defs>
+                                        <linearGradient id="user-calorie-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                            <stop offset="0%" stop-color="#8b5cf6" />
+                                            <stop offset="100%" stop-color="#ec4899" />
+                                        </linearGradient>
+                                    </defs>
+                                </svg>
+                                <div class="gauge-center">
+                                    <span class="gauge-number" id="user-dashboard-cal-remaining">0</span>
+                                    <span class="gauge-unit">kcal left</span>
+                                </div>
+                            </div>
+                            <!-- Calorie stats labels -->
+                            <div class="calorie-stats-details">
+                                <div class="cal-stat-item">
+                                    <span class="stat-circle dot-target"></span>
+                                    <div>
+                                        <span class="stat-label">Daily Target Goal</span>
+                                        <span class="stat-val" id="user-dashboard-cal-target">0 kcal</span>
+                                    </div>
+                                </div>
+                                <div class="cal-stat-item">
+                                    <span class="stat-circle dot-consumed"></span>
+                                    <div>
+                                        <span class="stat-label">Total Consumed</span>
+                                        <span class="stat-val" id="user-dashboard-cal-consumed">0 kcal</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Daily Macro Progress Bars -->
+                        <div class="dashboard-macros-bars">
+                            <div class="dashboard-macro-progress">
+                                <div class="bar-header">
+                                    <span>Protein</span>
+                                    <strong id="user-dash-protein-progress">0g / 0g</strong>
+                                </div>
+                                <div class="progress-bar-bg"><div class="progress-bar-fill fill-protein" id="user-dash-protein-bar" style="width: 0%"></div></div>
+                            </div>
+                            <div class="dashboard-macro-progress">
+                                <div class="bar-header">
+                                    <span>Carbohydrates</span>
+                                    <strong id="user-dash-carbs-progress">0g / 0g</strong>
+                                </div>
+                                <div class="progress-bar-bg"><div class="progress-bar-fill fill-carbs" id="user-dash-carbs-bar" style="width: 0%"></div></div>
+                            </div>
+                            <div class="dashboard-macro-progress">
+                                <div class="bar-header">
+                                    <span>Fats</span>
+                                    <strong id="user-dash-fats-progress">0g / 0g</strong>
+                                </div>
+                                <div class="progress-bar-bg"><div class="progress-bar-fill fill-fats" id="user-dash-fats-bar" style="width: 0%"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Water & Food Logging Grid -->
+                    <div class="logging-widgets-row">
+                        <!-- Water widget -->
+                        <div class="panel-card log-widget-box water-widget-box">
+                            <div class="box-header">
+                                <h3>Hydration Log</h3>
+                                <span class="box-value" id="user-dash-water-total">0 ml</span>
+                            </div>
+                            <p class="widget-subtitle">Goal: <span id="user-dash-water-target">0.0</span> Liters</p>
+                            
+                            <div class="water-cups-interactive">
+                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
+                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
+                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
+                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
+                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
+                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
+                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
+                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
+                            </div>
+                            <button class="btn-quick-water" id="btn-quick-add-water">
+                                <i data-lucide="plus"></i>
+                                <span>Log 250ml Water</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Quick Food Logger widget -->
+                        <div class="panel-card log-widget-box food-widget-box">
+                            <div class="box-header">
+                                <h3>Log Food Entry</h3>
+                            </div>
+                            <div class="food-logger-toggle" style="display: flex; gap: 8px; margin-bottom: 16px;">
+                                <button type="button" class="btn-toggle active" id="btn-food-mode-select" style="flex: 1; padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: var(--text-secondary); cursor: pointer; font-size: 13px; font-family: 'Inter', sans-serif; transition: all var(--transition-fast);">Select Food</button>
+                                <button type="button" class="btn-toggle" id="btn-food-mode-custom" style="flex: 1; padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: var(--text-secondary); cursor: pointer; font-size: 13px; font-family: 'Inter', sans-serif; transition: all var(--transition-fast);">Custom Entry</button>
+                            </div>
+                            <form id="user-dash-food-form" class="dashboard-food-form">
+                                <!-- Select Food Mode Panel -->
+                                <div id="food-select-group" class="food-input-group">
+                                    <div class="form-group-small autocomplete-wrapper" style="margin-bottom: 12px; width: 100%; position: relative;">
+                                        <input type="text" id="food-search-input" placeholder="Search 1000+ foods (e.g. Chicken)..." autocomplete="off" class="styled-input-text" style="width: 100%; height: 38px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(15, 23, 42, 0.6); color: var(--text-primary); padding: 0 12px; font-family: 'Inter'; font-size: 14px; outline: none; box-sizing: border-box;">
+                                        <div id="food-search-results" class="autocomplete-results hidden"></div>
+                                    </div>
+                                    <div class="form-group-small" style="width: 100%; display: flex; align-items: center; gap: 10px;">
+                                        <input type="number" id="food-log-amount" placeholder="Amount (g)" min="1" value="100" class="number-input-small" style="flex: 1; box-sizing: border-box; height: 38px;">
+                                        <span style="color: var(--text-secondary); font-size: 14px;">grams</span>
+                                    </div>
+                                    <!-- Live Preview Overlay -->
+                                    <div class="food-live-preview hidden" id="food-live-preview" style="margin-top: 14px; padding: 12px; border-radius: 8px; background: rgba(99, 102, 241, 0.08); border: 1px dashed rgba(99, 102, 241, 0.2); display: flex; justify-content: space-between; align-items: center;">
+                                        <span class="preview-metric" style="font-size: 14px; color: var(--primary-light); font-weight: 600;"><span id="preview-cal">0</span> kcal</span>
+                                        <div style="display: flex; gap: 8px; font-size: 11px; color: var(--text-secondary);">
+                                            <span>P: <strong id="preview-pro" style="color: var(--text-primary);">0g</strong></span>
+                                            <span>C: <strong id="preview-carb" style="color: var(--text-primary);">0g</strong></span>
+                                            <span>F: <strong id="preview-fat" style="color: var(--text-primary);">0g</strong></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Custom Entry Mode Panel (hidden initially) -->
+                                <div id="food-custom-group" class="food-input-group hidden">
+                                    <div class="form-group-small" style="margin-bottom: 12px; width: 100%;">
+                                        <input type="text" id="food-log-name" placeholder="Food Name (e.g. Protein Shake)" class="number-input-small" style="width: 100%; box-sizing: border-box; height: 38px;">
+                                    </div>
+                                    <div class="form-row-2">
+                                        <div class="form-group-small">
+                                            <input type="number" id="food-log-calories" placeholder="Calories (kcal)" min="0" class="number-input-small">
+                                        </div>
+                                        <div class="form-group-small">
+                                            <input type="number" id="food-log-protein" placeholder="Protein (g)" min="0" class="number-input-small">
+                                        </div>
+                                    </div>
+                                    <div class="form-row-2" style="margin-top: 10px;">
+                                        <div class="form-group-small">
+                                            <input type="number" id="food-log-carbs" placeholder="Carbs (g)" min="0" class="number-input-small">
+                                        </div>
+                                        <div class="form-group-small">
+                                            <input type="number" id="food-log-fat" placeholder="Fat (g)" min="0" class="number-input-small">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="btn-quick-food" style="margin-top: 16px; width: 100%;">
+                                    <i data-lucide="plus"></i>
+                                    <span id="btn-food-log-text">Log Food</span>
+                                </button>
+                            </form>
+                        </div>
+                        
+                        <!-- Today's Logged Foods Journal -->
+                        <div class="panel-card food-journal-card" style="margin-top: 24px;">
+                            <div class="box-header">
+                                <h3>Today's Food Journal</h3>
+                            </div>
+                            <div class="table-scroll">
+                                <table class="styled-table" id="food-journal-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Food Item</th>
+                                            <th>Amount</th>
+                                            <th>Calories</th>
+                                            <th>Macros (P/C/F)</th>
+                                            <th style="text-align: right;">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="food-journal-tbody">
+                                        <!-- Dynamic rows will be loaded here -->
+                                    </tbody>
+                                </table>
+                                <div class="empty-state-content" id="food-journal-empty-state" style="padding: 24px; text-align: center; color: var(--text-secondary);">
+                                    <i data-lucide="utensils" style="margin: 0 auto 12px; width: 32px; height: 32px; opacity: 0.5; display: block;"></i>
+                                    <p style="font-size: 13px;">No foods logged today. Start logging above to see details.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right Column: Checklists, Coach Messages, Weight Progress -->
+                <div class="dashboard-side-col">
+                    <!-- Daily Checklist -->
+                    <div class="panel-card checklist-card">
+                        <div class="checklist-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <h3>Daily Achievements</h3>
+                            <span class="achievement-progress-badge" id="checklist-progress-badge">0/4 Done</span>
+                        </div>
+                        <div class="checklist-items" id="user-dashboard-checklist">
+                            <label class="checklist-item-label disabled-checklist">
+                                <input type="checkbox" data-task="log-weight" disabled>
+                                <span class="task-checkbox-custom"></span>
+                                <span class="task-text">Weight Logged Today</span>
+                            </label>
+                            <label class="checklist-item-label disabled-checklist">
+                                <input type="checkbox" data-task="hit-calories" disabled>
+                                <span class="task-checkbox-custom"></span>
+                                <span class="task-text">Within Calorie Budget</span>
+                            </label>
+                            <label class="checklist-item-label disabled-checklist">
+                                <input type="checkbox" data-task="hit-protein" disabled>
+                                <span class="task-checkbox-custom"></span>
+                                <span class="task-text">Protein Target Met</span>
+                            </label>
+                            <label class="checklist-item-label disabled-checklist">
+                                <input type="checkbox" data-task="drink-water" disabled>
+                                <span class="task-checkbox-custom"></span>
+                                <span class="task-text">Hydration Goal Completed</span>
+                            </label>
+                        </div>
+                        <p class="checklist-helper-text" style="font-size: 11px; color: var(--text-secondary); margin-top: 14px; text-align: center; font-style: italic;">
+                            <i data-lucide="info" style="display: inline-block; width: 12px; height: 12px; vertical-align: middle; margin-right: 4px;"></i>Achievements update automatically as you log data.
+                        </p>
+                    </div>
+                    
+                    <!-- Coach's Announcements/Direct Notes -->
+                    <div class="panel-card coaching-notes-card">
+                        <h3>Coach's Board & Notes</h3>
+                        <div class="coaching-inbox" id="user-coaching-notes-list">
+                            <div class="empty-inbox-text">No notes or announcements from your coach.</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Weight Goal Progress -->
+                    <div class="panel-card target-weight-card">
+                        <h3>Goal Progress</h3>
+                        <div class="weight-progress-bar-container">
+                            <div class="progress-bar-labels">
+                                <span id="dash-weight-start">-- kg</span>
+                                <span id="dash-weight-current" class="progress-weight-current">-- kg</span>
+                                <span id="dash-weight-target">-- kg</span>
+                            </div>
+                            <div class="progress-bar-track">
+                                <div class="progress-bar-fill-goal" id="user-dash-weight-progress-bar" style="width: 0%"></div>
+                            </div>
+                            <p class="goal-desc-text" id="user-dash-weight-goal-text">Recalculate or log weight to update goal metrics.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Calculator -->
+        <div class="tab-content-panel active" id="panel-calculator">
+            <div class="grid-layout">
+                <!-- Left Panel: User Input Form -->
+                <section class="panel-card input-panel">
+                    <div class="panel-header">
+                        <h2>Profile Settings</h2>
+                        <p>Manage your biometric parameters and health configurations.</p>
+                    </div>
+
+                    <div class="profile-settings-avatar-card">
+                        <div class="profile-avatar-circle" id="settings-avatar-badge">
+                            <span id="settings-avatar-initials">U</span>
+                        </div>
+                        <div class="profile-avatar-details">
+                            <h3 id="settings-profile-username">User Profile</h3>
+                            <span class="badge badge-premium">Standard Client</span>
+                        </div>
+                    </div>
+
+                    <form id="nutrition-form" novalidate>
+                        <!-- Unit Toggle -->
+                        <div class="form-group unit-toggle-container">
+                            <label>Measurement System</label>
+                            <div class="toggle-switch">
+                                <input type="radio" id="unit-metric" name="units" value="metric" checked>
+                                <label for="unit-metric">Metric (cm, kg)</label>
+                                <input type="radio" id="unit-imperial" name="units" value="imperial">
+                                <label for="unit-imperial">Imperial (ft/in, lbs)</label>
+                                <span class="toggle-slider"></span>
+                            </div>
+                        </div>
+
+                        <!-- Gender Selection -->
+                        <div class="form-group">
+                            <label>Biological Gender</label>
+                            <div class="gender-cards">
+                                <label class="gender-card active">
+                                    <input type="radio" name="gender" value="male" checked>
+                                    <i data-lucide="mars"></i>
+                                    <span>Male</span>
+                                </label>
+                                <label class="gender-card">
+                                    <input type="radio" name="gender" value="female">
+                                    <i data-lucide="venus"></i>
+                                    <span>Female</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Age Selection -->
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label for="age-input">Age</label>
+                                <span class="input-display"><span id="age-val">25</span> yrs</span>
+                            </div>
+                            <div class="range-container">
+                                <input type="range" id="age-input" name="age" min="1" max="100" value="25">
+                                <input type="number" id="age-number" min="1" max="100" value="25" class="number-input">
+                            </div>
+                        </div>
+
+                        <!-- Height Selection -->
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label>Height</label>
+                                <span class="input-display" id="height-display">170 cm</span>
+                            </div>
+                            <!-- Metric Height -->
+                            <div class="range-container metric-only">
+                                <input type="range" id="height-metric" name="height_metric" min="50" max="230" value="170">
+                                <input type="number" id="height-metric-number" min="50" max="230" value="170" class="number-input">
+                            </div>
+                            <!-- Imperial Height -->
+                            <div class="imperial-height-inputs imperial-only hidden">
+                                <div class="imperial-subgroup">
+                                    <input type="number" id="height-ft" name="height_ft" min="1" max="8" value="5" placeholder="ft">
+                                    <span>ft</span>
+                                </div>
+                                <div class="imperial-subgroup">
+                                    <input type="number" id="height-in" name="height_in" min="0" max="11" value="7" placeholder="in">
+                                    <span>in</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Weight Selection -->
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label>Weight</label>
+                                <span class="input-display" id="weight-display">70 kg</span>
+                            </div>
+                            <div class="auto-estimate-container">
+                                <input type="checkbox" id="auto-estimate-weight" name="auto_estimate">
+                                <label for="auto-estimate-weight">Auto-estimate ideal weight based on height</label>
+                            </div>
+                            <!-- Metric Weight -->
+                            <div class="range-container weight-input-row metric-only">
+                                <input type="range" id="weight-metric" name="weight_metric" min="10" max="250" value="70">
+                                <input type="number" id="weight-metric-number" min="10" max="250" value="70" class="number-input">
+                            </div>
+                            <!-- Imperial Weight -->
+                            <div class="range-container weight-input-row imperial-only hidden">
+                                <input type="range" id="weight-imperial" name="weight_imperial" min="20" max="550" value="154">
+                                <input type="number" id="weight-imperial-number" min="20" max="550" value="154" class="number-input">
+                            </div>
+                        </div>
+
+                        <!-- Activity Level -->
+                        <div class="form-group">
+                            <label>Activity Level</label>
+                            <div class="activity-selector">
+                                <div class="activity-option active" data-value="sedentary">
+                                    <div class="option-content">
+                                        <span class="option-title">Sedentary</span>
+                                        <span class="option-desc">Little to no exercise, desk job</span>
+                                    </div>
+                                    <i data-lucide="check-circle-2"></i>
+                                </div>
+                                <div class="activity-option" data-value="light">
+                                    <div class="option-content">
+                                        <span class="option-title">Lightly Active</span>
+                                        <span class="option-desc">Light exercise 1–3 days/week</span>
+                                    </div>
+                                    <i data-lucide="check-circle-2"></i>
+                                </div>
+                                <div class="activity-option" data-value="moderate">
+                                    <div class="option-content">
+                                        <span class="option-title">Moderately Active</span>
+                                        <span class="option-desc">Moderate exercise 3–5 days/week</span>
+                                    </div>
+                                    <i data-lucide="check-circle-2"></i>
+                                </div>
+                                <div class="activity-option" data-value="active">
+                                    <div class="option-content">
+                                        <span class="option-title">Very Active</span>
+                                        <span class="option-desc">Hard exercise 6–7 days/week</span>
+                                    </div>
+                                    <i data-lucide="check-circle-2"></i>
+                                </div>
+                            </div>
+                            <input type="hidden" name="activity" id="activity-input" value="sedentary">
+                        </div>
+
+                        <!-- Goal -->
+                        <div class="form-group">
+                            <label for="goal-select">Fitness & Weight Goal</label>
+                            <select id="goal-select" name="goal" class="styled-select">
+                                <option value="lose">Weight Loss (-500 kcal)</option>
+                                <option value="lose_mild">Mild Weight Loss (-250 kcal)</option>
+                                <option value="maintain" selected>Maintain Weight</option>
+                                <option value="gain_mild">Mild Weight Gain (+250 kcal)</option>
+                                <option value="gain">Weight Gain / Muscle Build (+500 kcal)</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn-submit" id="btn-submit">
+                            <span>Save Settings & Update Targets</span>
+                            <i data-lucide="save"></i>
+                        </button>
+                    </form>
+                </section>
+
+                <!-- Right Panel: Output Dashboard -->
+                <section class="panel-card output-panel empty-state" id="output-section">
+                    <!-- Empty State View -->
+                    <div class="empty-state-content" id="empty-state-view">
+                        <div class="pulse-icon-container">
+                            <i data-lucide="activity" class="pulse-icon"></i>
+                        </div>
+                        <h3>Awaiting Intelligence</h3>
+                        <p>Enter your profile metrics and hit calculate to generate your daily energy expenditure, macronutrient targets, and essential micronutrient recommendations.</p>
+                    </div>
+
+                    <!-- Loading State View -->
+                    <div class="loading-state-content hidden" id="loading-view">
+                        <div class="spinner"></div>
+                        <h3>Analyzing Metrics...</h3>
+                        <p>Formulating dietary recommendations based on dietary reference intakes...</p>
+                    </div>
+
+                    <!-- Dashboard Content View (Hidden Initially) -->
+                    <div class="dashboard-content hidden" id="dashboard-view">
+                        <div class="dashboard-header">
+                            <div>
+                                <h2>Daily Nutrition Intelligence</h2>
+                                <p class="summary-subtitle">Based on Mifflin-St Jeor & DRI Guidelines</p>
+                            </div>
+                            <button class="btn-icon" id="btn-print" title="Print Nutrition Profile">
+                                <i data-lucide="printer"></i>
+                            </button>
+                        </div>
+
+                        <!-- Key Insights Cards -->
+                        <div class="key-metrics-grid">
+                            <div class="metric-card">
+                                <span class="metric-label">Ideal Body Weight</span>
+                                <span class="metric-value" id="val-ideal-weight">68.5 kg</span>
+                                <span class="metric-hint">Based on healthy BMI of 22</span>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-label">Basal Metabolic Rate</span>
+                                <span class="metric-value" id="val-bmr">1,540 kcal</span>
+                                <span class="metric-hint">Energy burned at complete rest</span>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-label">TDEE</span>
+                                <span class="metric-value" id="val-tdee">2,150 kcal</span>
+                                <span class="metric-hint">Total energy burned daily</span>
+                            </div>
+                        </div>
+
+                        <!-- Calorie & Water Section -->
+                        <div class="calories-water-row">
+                            <!-- Calorie Target Gauge -->
+                            <div class="widget-card calorie-widget">
+                                <h3>Target Daily Energy Intake</h3>
+                                <div class="gauge-wrapper">
+                                    <svg class="progress-ring" width="180" height="180">
+                                        <circle class="progress-ring__background" stroke="rgba(255, 255, 255, 0.05)" stroke-width="12" fill="transparent" r="74" cx="90" cy="90"/>
+                                        <circle class="progress-ring__circle" id="calorie-progress-circle" stroke="url(#calorie-grad)" stroke-width="12" stroke-dasharray="465" stroke-dashoffset="465" fill="transparent" r="74" cx="90" cy="90"/>
+                                        <defs>
+                                            <linearGradient id="calorie-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" stop-color="#4f46e5" />
+                                                <stop offset="100%" stop-color="#06b6d4" />
+                                            </linearGradient>
+                                        </defs>
+                                    </svg>
+                                    <div class="gauge-center">
+                                        <span class="gauge-number" id="val-target-calories">1,900</span>
+                                        <span class="gauge-unit">kcal / day</span>
+                                    </div>
+                                </div>
+                                <p class="gauge-label-explanation">Target intake calculated to support your goal.</p>
+                            </div>
+
+                            <!-- Water Intake Glass -->
+                            <div class="widget-card water-widget">
+                                <h3>Hydration Requirement</h3>
+                                <div class="water-glass-container">
+                                    <div class="water-glass">
+                                        <div class="water-liquid" id="water-liquid-fill">
+                                            <div class="bubble bubble-1"></div>
+                                            <div class="bubble bubble-2"></div>
+                                            <div class="bubble bubble-3"></div>
+                                        </div>
+                                        <span class="glass-reflection"></span>
+                                    </div>
+                                    <div class="water-metrics">
+                                        <span class="water-value" id="val-water">2.8 L</span>
+                                        <span class="water-cups" id="val-water-cups">~11.2 cups</span>
+                                    </div>
+                                </div>
+                                <p class="hydration-detail">Includes base weight needs + activity level adjustments.</p>
+                            </div>
+                        </div>
+
+                        <!-- Macronutrients Grid -->
+                        <div class="widget-card macros-widget">
+                            <h3>Daily Macronutrient Targets</h3>
+                            <div class="macros-grid">
+                                <!-- Protein Card -->
+                                <div class="macro-bar-card protein-card">
+                                    <div class="macro-info">
+                                        <div class="macro-title-group">
+                                            <span class="macro-color-dot dot-protein"></span>
+                                            <span class="macro-name">Protein</span>
+                                        </div>
+                                        <span class="macro-grams" id="val-protein-g">140g</span>
+                                    </div>
+                                    <div class="progress-bar-bg">
+                                        <div class="progress-bar-fill fill-protein" id="bar-protein"></div>
+                                    </div>
+                                    <div class="macro-details">
+                                        <span id="val-protein-cal">560 kcal</span>
+                                        <span id="val-protein-pct">30%</span>
+                                    </div>
+                                </div>
+
+                                <!-- Carbs Card -->
+                                <div class="macro-bar-card carbs-card">
+                                    <div class="macro-info">
+                                        <div class="macro-title-group">
+                                            <span class="macro-color-dot dot-carbs"></span>
+                                            <span class="macro-name">Carbohydrates</span>
+                                        </div>
+                                        <span class="macro-grams" id="val-carbs-g">215g</span>
+                                    </div>
+                                    <div class="progress-bar-bg">
+                                        <div class="progress-bar-fill fill-carbs" id="bar-carbs"></div>
+                                    </div>
+                                    <div class="macro-details">
+                                        <span id="val-carbs-cal">860 kcal</span>
+                                        <span id="val-carbs-pct">45%</span>
+                                    </div>
+                                </div>
+
+                                <!-- Fats Card -->
+                                <div class="macro-bar-card fats-card">
+                                    <div class="macro-info">
+                                        <div class="macro-title-group">
+                                            <span class="macro-color-dot dot-fats"></span>
+                                            <span class="macro-name">Dietary Fats</span>
+                                        </div>
+                                        <span class="macro-grams" id="val-fats-g">53g</span>
+                                    </div>
+                                    <div class="progress-bar-bg">
+                                        <div class="progress-bar-fill fill-fats" id="bar-fats"></div>
+                                    </div>
+                                    <div class="macro-details">
+                                        <span id="val-fats-cal">480 kcal</span>
+                                        <span id="val-fats-pct">25%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Fiber Progress -->
+                            <div class="fiber-row">
+                                <div class="fiber-info">
+                                    <div class="fiber-title">
+                                        <i data-lucide="leaf"></i>
+                                        <span>Dietary Fiber</span>
+                                    </div>
+                                    <span class="fiber-grams" id="val-fiber-g">30g</span>
+                                </div>
+                                <div class="fiber-bar-bg">
+                                    <div class="fiber-bar-fill" id="bar-fiber"></div>
+                                </div>
+                                <p class="fiber-desc">Vital for digestive health, cholesterol regulation, and prolonged satiety.</p>
+                            </div>
+                        </div>
+
+                        <!-- Essential Micronutrients -->
+                        <div class="micronutrients-section">
+                            <h3>Essential Vitamins & Minerals</h3>
+                            <p class="section-desc">Critical micronutrients your body needs daily for healthy cell metabolism, immunity, and organ function.</p>
+                            <div class="micros-cards-grid" id="micros-container">
+                                <!-- Populated Dynamically by JS -->
+                            </div>
+                        </div>
+
+                        <!-- Dietary Disclaimer -->
+                        <footer class="dashboard-footer">
+                            <i data-lucide="alert-triangle"></i>
+                            <p><strong>Clinical Disclaimer:</strong> These calculations are estimates based on standard clinical guidelines (Dietary Reference Intakes). Individual needs may vary. Consult a registered dietitian or doctor for personal medical nutrition plans.</p>
+                        </footer>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- Tab Content: Weight Tracker (Hidden Initially) -->
+        <div class="tab-content-panel hidden" id="panel-history">
+            <div class="history-grid">
+                <!-- Log Weight Card -->
+                <section class="panel-card log-weight-card">
+                    <div class="panel-header">
+                        <h2>Log Weight</h2>
+                        <p>Track your daily progress. Calories recalculate automatically as you log new weights.</p>
+                    </div>
+                    
+                    <form id="weight-log-form">
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label>Logged Weight</label>
+                                <span class="input-display" id="log-weight-display">70 kg</span>
+                            </div>
+                            <!-- Metric Log Slider -->
+                            <div class="range-container metric-only">
+                                <input type="range" id="log-weight-metric" min="10" max="250" value="70">
+                                <input type="number" id="log-weight-metric-number" min="10" max="250" value="70" class="number-input">
+                            </div>
+                            <!-- Imperial Log Slider -->
+                            <div class="range-container imperial-only hidden">
+                                <input type="range" id="log-weight-imperial" min="20" max="550" value="154">
+                                <input type="number" id="log-weight-imperial-number" min="20" max="550" value="154" class="number-input">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="log-date">Log Date</label>
+                            <input type="date" id="log-date" class="styled-date-input" required>
+                        </div>
+                        
+                        <div class="auth-error error-banner hidden" id="log-weight-error"></div>
+                        
+                        <button type="submit" class="btn-submit">
+                            <span>Save Entry</span>
+                            <i data-lucide="save"></i>
+                        </button>
+                    </form>
+                </section>
+
+                <!-- Graph and Table Card -->
+                <section class="panel-card chart-card">
+                    <div class="panel-header">
+                        <h2>Weight Trend</h2>
+                        <p>Monitor your trends and tracking over time.</p>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <canvas id="weightHistoryChart"></canvas>
+                    </div>
+                    
+                    <div class="weight-logs-table-wrapper">
+                        <h3>Logged Entries</h3>
+                        <div class="table-scroll">
+                            <table class="styled-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Weight</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="weight-logs-tbody">
+                                    <!-- Dynamic Rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- Tab Content: Admin Console (Hidden Initially) -->
+        <div class="tab-content-panel hidden" id="panel-admin">
+            <!-- Admin Subtab Selection -->
+            <div class="admin-subnav">
+                <button class="admin-subtab active" id="btn-admin-sub-overview" data-subtab="overview">
+                    <i data-lucide="bar-chart-3"></i>
+                    <span>Dashboard Analytics</span>
+                </button>
+                <button class="admin-subtab" id="btn-admin-sub-registry" data-subtab="registry">
+                    <i data-lucide="users"></i>
+                    <span>Client Registry</span>
+                </button>
+                <button class="admin-subtab" id="btn-admin-sub-foods" data-subtab="foods">
+                    <i data-lucide="database"></i>
+                    <span>Predefined Foods</span>
+                </button>
+                <button class="admin-subtab" id="btn-admin-sub-system" data-subtab="system">
+                    <i data-lucide="activity"></i>
+                    <span>System & Security</span>
+                </button>
+            </div>
+
+            <!-- Subtab 1: Overview Analytics -->
+            <div class="admin-subpanel active" id="admin-panel-overview">
+                <!-- Aggregate Analytics Grid -->
+                <div class="key-metrics-grid admin-stats-grid">
+                    <div class="metric-card">
+                        <span class="metric-label">Active Clients</span>
+                        <span class="metric-value" id="admin-val-total-users">0</span>
+                        <span class="metric-hint">Standard users</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Estimated SaaS MRR</span>
+                        <span class="metric-value" id="admin-val-mrr">$0</span>
+                        <span class="metric-hint" id="admin-val-active-subs">0 active paid plans</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Food Database</span>
+                        <span class="metric-value" id="admin-val-total-foods">0</span>
+                        <span class="metric-hint">Predefined items</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Audit Logs</span>
+                        <span class="metric-value" id="admin-val-total-logs">0</span>
+                        <span class="metric-hint">Actions tracked</span>
+                    </div>
+                </div>
+
+                <!-- Demographic & Target Distribution Charts -->
+                <div class="admin-charts-grid">
+                    <div class="panel-card chart-kpi-box">
+                        <h3>Client Goals Distribution</h3>
+                        <div class="admin-chart-canvas-wrapper">
+                            <canvas id="adminGoalDistChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="panel-card chart-kpi-box">
+                        <h3>Client Activity Distribution</h3>
+                        <div class="admin-chart-canvas-wrapper">
+                            <canvas id="adminActivityDistChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="panel-card chart-kpi-box">
+                        <h3>Subscription Plan splits</h3>
+                        <div class="admin-chart-canvas-wrapper">
+                            <canvas id="adminTierDistChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Global Announcement Board -->
+                <div class="panel-card admin-announcement-card">
+                    <h3>Post Global Announcement</h3>
+                    <p class="widget-subtitle">This announcement will display in all registered client dashboards.</p>
+                    <form id="admin-announcement-form" class="announcement-form">
+                        <div class="form-group">
+                            <textarea id="admin-announcement-msg" placeholder="Write announcement details here..." required class="styled-textarea"></textarea>
+                        </div>
+                        <div class="announcement-btn-row">
+                            <button type="submit" class="btn-submit btn-announcement">
+                                <i data-lucide="send"></i>
+                                <span>Broadcast Announcement</span>
+                            </button>
+                        </div>
+                    </form>
+                    <div id="admin-announcement-status" class="status-banner hidden"></div>
+                </div>
+            </div>
+
+            <!-- Subtab 2: Client Directory Registry -->
+            <div class="admin-subpanel hidden" id="admin-panel-registry">
+                <!-- Client Directory Split View -->
+                <div class="admin-directory-layout">
+                    <!-- User Directory Panel -->
+                    <section class="panel-card admin-directory-card">
+                        <div class="panel-header">
+                            <h2>Client Directory</h2>
+                            <p>Filter and search your clients list. Select a client to inspect details.</p>
+                        </div>
+
+                        <!-- Search & Filters -->
+                        <div class="directory-filter-row" style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;">
+                            <input type="text" id="admin-user-search" placeholder="Search username..." class="styled-input-text filter-search" style="flex: 2; height: 38px; min-width: 150px;">
+                            <select id="admin-user-tier-filter" class="styled-select filter-dropdown" style="flex: 1; height: 38px; min-width: 120px;">
+                                <option value="all">All Plans</option>
+                                <option value="free">Free</option>
+                                <option value="premium">Premium</option>
+                                <option value="enterprise">Enterprise</option>
+                            </select>
+                            <select id="admin-user-goal-filter" class="styled-select filter-dropdown" style="flex: 1; height: 38px; min-width: 120px;">
+                                <option value="all">All Goals</option>
+                                <option value="lose">Weight Loss</option>
+                                <option value="maintain">Maintain</option>
+                                <option value="gain">Weight Gain</option>
+                            </select>
+                        </div>
+                        
+                        <div class="table-scroll directory-table-scroll">
+                            <table class="styled-table directory-table">
+                                <thead>
+                                    <tr>
+                                        <th>Username</th>
+                                        <th>Plan Tier</th>
+                                        <th>Gender</th>
+                                        <th>Age</th>
+                                        <th>Weight</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-users-tbody">
+                                    <!-- Dynamic user rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <!-- Selected Client Insights Panel -->
+                    <section class="panel-card admin-details-card" id="admin-user-details-panel">
+                        <!-- Client Detail Empty State -->
+                        <div class="empty-state-content" id="admin-details-empty-state">
+                            <div class="pulse-icon-container">
+                                <i data-lucide="user-check" class="pulse-icon"></i>
+                            </div>
+                            <h3>Select a Client</h3>
+                            <p>Click on any row in the directory list to examine their biometrics, daily macro breakdowns, and historical weight trend curves.</p>
+                        </div>
+
+                        <!-- Client Detail Display -->
+                        <div class="admin-details-content hidden" id="admin-details-display">
+                            <div class="details-card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 15px;">
+                                <div style="flex: 1;">
+                                    <h2 id="admin-display-client-name">username</h2>
+                                    <p class="summary-subtitle" id="admin-display-join-date" style="margin-top: 4px;">Registered: YYYY-MM-DD</p>
+                                </div>
+                                <div class="admin-tier-upgrade-wrapper" style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Plan:</span>
+                                    <select id="admin-client-tier-select" class="styled-select tier-select-small" style="height: 32px; padding: 0 8px; font-size: 12px; border-radius: 6px;">
+                                        <option value="free">Free Plan</option>
+                                        <option value="premium">Premium Plan</option>
+                                        <option value="enterprise">Enterprise Plan</option>
+                                    </select>
+                                </div>
+                                <button class="btn-icon btn-danger-action" id="btn-admin-delete-user" title="Delete Client Profile">
+                                    <i data-lucide="trash-2"></i>
+                                </button>
+                            </div>
+
+                            <!-- Biometrics Row -->
+                            <div class="biometrics-row">
+                                <div class="details-mini-stat">
+                                    <span class="mini-label">Age</span>
+                                    <span class="mini-value" id="admin-client-age">25 yrs</span>
+                                </div>
+                                <div class="details-mini-stat">
+                                    <span class="mini-label">Height</span>
+                                    <span class="mini-value" id="admin-client-height">170 cm</span>
+                                </div>
+                                <div class="details-mini-stat">
+                                    <span class="mini-label">Weight</span>
+                                    <span class="mini-value" id="admin-client-weight">70 kg</span>
+                                </div>
+                                <div class="details-mini-stat">
+                                    <span class="mini-label">Goal</span>
+                                    <span class="mini-value" id="admin-client-goal">Maintain</span>
+                                </div>
+                            </div>
+
+                            <!-- Calorie details box -->
+                            <div class="details-tdee-box">
+                                <div class="tdee-stat-col">
+                                    <span class="tdee-label">TDEE Intake Target</span>
+                                    <span class="tdee-val" id="admin-client-target-calories">2,150 kcal</span>
+                                </div>
+                                <div class="tdee-stat-col">
+                                    <span class="tdee-label">Activity Level</span>
+                                    <span class="tdee-val-small" id="admin-client-activity">Moderately Active</span>
+                                </div>
+                            </div>
+
+                            <!-- Mini Macros Summary -->
+                            <div class="details-macros-summary">
+                                <div class="mini-macro-pill protein-pill">
+                                    <span>Protein</span>
+                                    <strong id="admin-client-protein">140g</strong>
+                                </div>
+                                <div class="mini-macro-pill carbs-pill">
+                                    <span>Carbs</span>
+                                    <strong id="admin-client-carbs">215g</strong>
+                                </div>
+                                <div class="mini-macro-pill fats-pill">
+                                    <span>Fats</span>
+                                    <strong id="admin-client-fats">53g</strong>
+                                </div>
+                            </div>
+
+                            <!-- Selected User weight chart box -->
+                            <div class="admin-chart-box">
+                                <h3>Client Weight History</h3>
+                                <div class="admin-chart-container">
+                                    <canvas id="adminClientChart"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Custom Coach Overrides Box -->
+                            <div class="admin-override-box">
+                                <h3>Coach Target Overrides</h3>
+                                <p class="widget-subtitle">Manually set custom macro targets to override calculation engines.</p>
+                                <form id="admin-override-form" class="override-form">
+                                    <div class="form-row-4">
+                                        <div class="form-group-tiny">
+                                            <label for="override-cal">Calories (kcal)</label>
+                                            <input type="number" id="override-cal" placeholder="e.g. 2500" required min="100" class="number-input-small">
+                                        </div>
+                                        <div class="form-group-tiny">
+                                            <label for="override-pro">Protein (g)</label>
+                                            <input type="number" id="override-pro" placeholder="e.g. 150" required min="0" class="number-input-small">
+                                        </div>
+                                        <div class="form-group-tiny">
+                                            <label for="override-carb">Carbs (g)</label>
+                                            <input type="number" id="override-carb" placeholder="e.g. 200" required min="0" class="number-input-small">
+                                        </div>
+                                        <div class="form-group-tiny">
+                                            <label for="override-fat">Fat (g)</label>
+                                            <input type="number" id="override-fat" placeholder="e.g. 70" required min="0" class="number-input-small">
+                                        </div>
+                                    </div>
+                                    <div class="override-btn-row">
+                                        <button type="submit" class="btn-submit btn-apply-override">
+                                            <i data-lucide="check"></i>
+                                            <span>Apply Override</span>
+                                        </button>
+                                        <button type="button" class="btn-secondary-action" id="btn-clear-override">
+                                            <i data-lucide="refresh-cw"></i>
+                                            <span>Reset to Auto</span>
+                                        </button>
+                                    </div>
+                                </form>
+                                <div id="admin-override-status" class="status-banner hidden"></div>
+                            </div>
+
+                            <!-- Coaching Direct Messaging Box -->
+                            <div class="admin-messaging-box">
+                                <h3>Send Client Advice Note</h3>
+                                <p class="widget-subtitle">Post a direct feedback note visible in this client's dashboard.</p>
+                                <form id="admin-message-form" class="messaging-form">
+                                    <div class="form-group">
+                                        <textarea id="admin-client-msg" placeholder="Write advice message here..." required class="styled-textarea"></textarea>
+                                    </div>
+                                    <div class="message-btn-row">
+                                        <button type="submit" class="btn-submit btn-send-message">
+                                            <i data-lucide="send"></i>
+                                            <span>Send Advice</span>
+                                        </button>
+                                    </div>
+                                </form>
+                                <div id="admin-message-status" class="status-banner hidden"></div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- Subtab 3: Predefined Food Database CRUD Panel -->
+            <div class="admin-subpanel hidden" id="admin-panel-foods">
+                <div class="admin-food-db-layout" style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 24px;">
+                    <!-- Food Database List -->
+                    <section class="panel-card admin-foods-card" style="min-width: 0;">
+                        <div class="panel-header flex-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <div>
+                                <h2>Food Database Manager</h2>
+                                <p>Manage platform food items. Seeded database contains 1000+ items.</p>
+                            </div>
+                            <button type="button" class="btn-submit btn-add-food-trigger" id="btn-show-add-food-form" style="height: 36px; padding: 0 16px; font-size: 13px;">
+                                <i data-lucide="plus" style="width: 14px; height: 14px; margin-right: 4px;"></i>
+                                <span>Add New Food</span>
+                            </button>
+                        </div>
+                        
+                        <div class="food-db-filter-row" style="margin-bottom: 16px;">
+                            <input type="text" id="admin-food-search" placeholder="Search database foods..." class="styled-input-text" style="width: 100%; height: 38px;">
+                        </div>
+                        
+                        <div class="table-scroll food-table-scroll" style="max-height: 480px; overflow-y: auto;">
+                            <table class="styled-table food-manager-table">
+                                <thead>
+                                    <tr>
+                                        <th>Food Item Name</th>
+                                        <th>Calories (100g)</th>
+                                        <th>Protein (100g)</th>
+                                        <th>Carbs (100g)</th>
+                                        <th>Fat (100g)</th>
+                                        <th style="text-align: right; width: 100px;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-foods-tbody">
+                                    <!-- Predefined foods loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="pagination-footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.05);">
+                            <button id="btn-food-prev" class="btn-secondary-action" style="height: 32px; font-size: 12px; padding: 0 12px;"><i data-lucide="chevron-left" style="width: 14px;"></i> Previous</button>
+                            <span id="food-page-info" style="font-size: 13px; color: var(--text-secondary);">Page 1 of 50</span>
+                            <button id="btn-food-next" class="btn-secondary-action" style="height: 32px; font-size: 12px; padding: 0 12px;">Next <i data-lucide="chevron-right" style="width: 14px;"></i></button>
+                        </div>
+                    </section>
+
+                    <!-- Food Editor / Creator Card (Dynamic Sidebar) -->
+                    <section class="panel-card admin-food-form-card hidden" id="admin-food-form-container">
+                        <div class="panel-header" style="margin-bottom: 20px;">
+                            <h2 id="food-form-title">Add Predefined Food</h2>
+                            <p id="food-form-subtitle">Define calorie and macro properties per 100g portions.</p>
+                        </div>
+                        <form id="admin-food-form" class="food-form">
+                            <input type="hidden" id="admin-food-form-id">
+                            <div class="form-group" style="margin-bottom: 16px;">
+                                <label for="admin-food-form-name" style="display: block; margin-bottom: 6px; font-size: 12px; color: var(--text-secondary);">Food Item Name</label>
+                                <input type="text" id="admin-food-form-name" required placeholder="e.g. Grilled Chicken Wings" class="styled-input-text" style="width: 100%; height: 38px;">
+                            </div>
+                            <div class="form-row-2" style="display: flex; gap: 16px; margin-bottom: 16px;">
+                                <div class="form-group-half" style="flex: 1;">
+                                    <label for="admin-food-form-cal" style="display: block; margin-bottom: 6px; font-size: 12px; color: var(--text-secondary);">Calories (kcal)</label>
+                                    <input type="number" id="admin-food-form-cal" required min="0" placeholder="e.g. 190" class="number-input-small" style="width: 100%; height: 38px;">
+                                </div>
+                                <div class="form-group-half" style="flex: 1;">
+                                    <label for="admin-food-form-pro" style="display: block; margin-bottom: 6px; font-size: 12px; color: var(--text-secondary);">Protein (g)</label>
+                                    <input type="number" id="admin-food-form-pro" required min="0" step="0.1" placeholder="e.g. 18.0" class="number-input-small" style="width: 100%; height: 38px;">
+                                </div>
+                            </div>
+                            <div class="form-row-2" style="display: flex; gap: 16px; margin-bottom: 20px;">
+                                <div class="form-group-half" style="flex: 1;">
+                                    <label for="admin-food-form-carb" style="display: block; margin-bottom: 6px; font-size: 12px; color: var(--text-secondary);">Carbs (g)</label>
+                                    <input type="number" id="admin-food-form-carb" required min="0" step="0.1" placeholder="e.g. 0.0" class="number-input-small" style="width: 100%; height: 38px;">
+                                </div>
+                                <div class="form-group-half" style="flex: 1;">
+                                    <label for="admin-food-form-fat" style="display: block; margin-bottom: 6px; font-size: 12px; color: var(--text-secondary);">Fat (g)</label>
+                                    <input type="number" id="admin-food-form-fat" required min="0" step="0.1" placeholder="e.g. 13.0" class="number-input-small" style="width: 100%; height: 38px;">
+                                </div>
+                            </div>
+                            <div class="food-form-btn-row" style="display: flex; gap: 10px;">
+                                <button type="submit" class="btn-submit" id="btn-save-food" style="flex: 1; height: 38px; font-size: 13px;">
+                                    <i data-lucide="check" style="width: 14px; height: 14px; margin-right: 4px;"></i>
+                                    <span id="btn-save-food-text">Save Food</span>
+                                </button>
+                                <button type="button" class="btn-secondary-action" id="btn-cancel-food" style="height: 38px; font-size: 13px;">Cancel</button>
+                            </div>
+                        </form>
+                        <div id="admin-food-status" class="status-banner hidden" style="margin-top: 14px;"></div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- Subtab 4: System Logs & Server Health -->
+            <div class="admin-subpanel hidden" id="admin-panel-system">
+                <!-- System Health Monitoring Cards -->
+                <div class="key-metrics-grid system-health-grid" style="margin-bottom: 24px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                    <div class="metric-card health-card" style="padding: 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; position: relative;">
+                        <div class="health-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span class="metric-label" style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase;">CPU Load</span>
+                            <span class="health-indicator status-green" id="cpu-health-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></span>
+                        </div>
+                        <span class="metric-value" id="system-val-cpu" style="font-size: 20px; font-weight: 700; color: var(--text-primary);">12%</span>
+                        <div class="health-progress-bg" style="height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; margin-top: 12px; overflow: hidden;">
+                            <div class="health-progress-fill fill-cpu" id="system-bar-cpu" style="width: 12%; height: 100%; background: var(--secondary-light);"></div>
+                        </div>
+                    </div>
+                    <div class="metric-card health-card" style="padding: 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; position: relative;">
+                        <div class="health-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span class="metric-label" style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase;">Memory Usage</span>
+                            <span class="health-indicator status-green" id="mem-health-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></span>
+                        </div>
+                        <span class="metric-value" id="system-val-mem" style="font-size: 20px; font-weight: 700; color: var(--text-primary);">256 MB</span>
+                        <div class="health-progress-bg" style="height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; margin-top: 12px; overflow: hidden;">
+                            <div class="health-progress-fill fill-cpu" id="system-bar-mem" style="width: 25%; height: 100%; background: var(--primary-light);"></div>
+                        </div>
+                    </div>
+                    <div class="metric-card health-card" style="padding: 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; position: relative;">
+                        <div class="health-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span class="metric-label" style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase;">DB Conn Pool</span>
+                            <span class="health-indicator status-green" id="db-health-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></span>
+                        </div>
+                        <span class="metric-value" id="system-val-db" style="font-size: 20px; font-weight: 700; color: var(--text-primary);">4 / 20 Conn</span>
+                        <div class="health-progress-bg" style="height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; margin-top: 12px; overflow: hidden;">
+                            <div class="health-progress-fill fill-cpu" id="system-bar-db" style="width: 20%; height: 100%; background: #06b6d4;"></div>
+                        </div>
+                    </div>
+                    <div class="metric-card health-card" style="padding: 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; position: relative;">
+                        <div class="health-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span class="metric-label" style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase;">Avg Latency</span>
+                            <span class="health-indicator status-green" id="latency-health-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></span>
+                        </div>
+                        <span class="metric-value" id="system-val-latency" style="font-size: 20px; font-weight: 700; color: var(--text-primary);">42 ms</span>
+                        <div class="health-progress-bg" style="height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; margin-top: 12px; overflow: hidden;">
+                            <div class="health-progress-fill fill-cpu" id="system-bar-latency" style="width: 8%; height: 100%; background: #f59e0b;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Action Audit Logs Table -->
+                <section class="panel-card admin-logs-card">
+                    <div class="panel-header" style="margin-bottom: 20px;">
+                        <h2>Administrative Audit Logs</h2>
+                        <p>Real-time security logs of all actions performed by system managers.</p>
+                    </div>
+                    <div class="table-scroll logs-table-scroll" style="max-height: 400px; overflow-y: auto;">
+                        <table class="styled-table logs-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Admin</th>
+                                    <th>Action Type</th>
+                                    <th>Target Item</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-logs-tbody">
+                                <!-- Audit logs dynamically loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <!-- Authentication Overlay Modal -->
+    <div class="modal-overlay hidden" id="auth-modal">
+        <div class="modal-card">
+            <button class="modal-close-btn" id="btn-close-auth">
+                <i data-lucide="x"></i>
+            </button>
+            
+            <div class="auth-card-inner">
+                <!-- Login form -->
+                <div class="auth-form-side" id="login-side">
+                    <div class="auth-header">
+                        <h2>Welcome to NutriQuant</h2>
+                        <p>Sign in to preserve your calculated targets and track weight logs over time.</p>
+                    </div>
+                    
+                    <form id="login-form">
+                        <div class="form-group">
+                            <label for="login-username">Username</label>
+                            <input type="text" id="login-username" required placeholder="Enter your username" autocomplete="username">
+                        </div>
+                        <div class="form-group">
+                            <label for="login-password">Password</label>
+                            <input type="password" id="login-password" required placeholder="••••••••" autocomplete="current-password">
+                        </div>
+                        <div class="auth-error error-banner hidden" id="login-error"></div>
+                        
+                        <button type="submit" class="btn-submit">
+                            <span>Sign In</span>
+                            <i data-lucide="log-in"></i>
+                        </button>
+                    </form>
+                    
+                    <p class="auth-switch-text">New to NutriQuant? <a href="#" id="link-to-register">Create Account</a></p>
+                </div>
+
+                <!-- Registration form -->
+                <div class="auth-form-side hidden" id="register-side">
+                    <div class="auth-header">
+                        <h2>Create Account</h2>
+                        <p>Sign up to track weight trends and unlock full analytical data reports.</p>
+                    </div>
+                    
+                    <form id="register-form">
+                        <div class="form-group">
+                            <label for="register-username">Username</label>
+                            <input type="text" id="register-username" required placeholder="Choose a username" autocomplete="username">
+                        </div>
+                        <div class="form-group">
+                            <label for="register-password">Password</label>
+                            <input type="password" id="register-password" required placeholder="At least 6 characters" autocomplete="new-password">
+                        </div>
+                        <div class="auth-error error-banner hidden" id="register-error"></div>
+                        
+                        <button type="submit" class="btn-submit">
+                            <span>Register Account</span>
+                            <i data-lucide="user-plus"></i>
+                        </button>
+                    </form>
+                    
+                    <p class="auth-switch-text">Already registered? <a href="#" id="link-to-login">Sign In</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap Session Script -->
+    <script>
+        window.bootstrapSession = {
+            isLoggedIn: {% if user %}true{% else %}false{% endif %},
+            username: {% if user %}"{{ user.username }}"{% else %}null{% endif %},
+            userId: {% if user %}{{ user.id }}{% else %}null{% endif %},
+            isAdmin: {% if user and user.is_admin %}true{% else %}false{% endif %}
+        };
+    </script>
+    <!-- Project JavaScript Controller -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
