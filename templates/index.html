@@ -77,17 +77,32 @@
                     <div class="metrics-summary-card panel-card">
                         <h3>Today's Energy Balance</h3>
                         <div class="energy-balance-row">
-                            <!-- Circular Calorie Gauge -->
+                            <!-- Concentric Activity Rings Gauge -->
                             <div class="calorie-progress-gauge">
                                 <svg class="progress-ring" width="160" height="160">
-                                    <circle class="progress-ring__background" stroke="rgba(255, 255, 255, 0.05)" stroke-width="10" fill="transparent" r="66" cx="80" cy="80"/>
-                                    <circle class="progress-ring__circle" id="user-calorie-ring" stroke="url(#user-calorie-grad)" stroke-width="10" stroke-dasharray="415" stroke-dashoffset="415" fill="transparent" r="66" cx="80" cy="80"/>
                                     <defs>
                                         <linearGradient id="user-calorie-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                                            <stop offset="0%" stop-color="#8b5cf6" />
-                                            <stop offset="100%" stop-color="#ec4899" />
+                                            <stop offset="0%" stop-color="#ec4899" />
+                                            <stop offset="100%" stop-color="#8b5cf6" />
+                                        </linearGradient>
+                                        <linearGradient id="user-protein-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                            <stop offset="0%" stop-color="#10b981" />
+                                            <stop offset="100%" stop-color="#059669" />
+                                        </linearGradient>
+                                        <linearGradient id="user-water-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                            <stop offset="0%" stop-color="#06b6d4" />
+                                            <stop offset="100%" stop-color="#3b82f6" />
                                         </linearGradient>
                                     </defs>
+                                    <!-- Calorie Outer Ring -->
+                                    <circle class="progress-ring__background" stroke="rgba(255, 255, 255, 0.03)" stroke-width="8" fill="transparent" r="66" cx="80" cy="80"/>
+                                    <circle class="progress-ring__circle" id="user-calorie-ring" stroke="url(#user-calorie-grad)" stroke-width="8" stroke-dasharray="415" stroke-dashoffset="415" stroke-linecap="round" fill="transparent" r="66" cx="80" cy="80"/>
+                                    <!-- Protein Middle Ring -->
+                                    <circle class="progress-ring__background" stroke="rgba(255, 255, 255, 0.03)" stroke-width="8" fill="transparent" r="54" cx="80" cy="80"/>
+                                    <circle class="progress-ring__circle" id="user-protein-ring" stroke="url(#user-protein-grad)" stroke-width="8" stroke-dasharray="339" stroke-dashoffset="339" stroke-linecap="round" fill="transparent" r="54" cx="80" cy="80"/>
+                                    <!-- Water Inner Ring -->
+                                    <circle class="progress-ring__background" stroke="rgba(255, 255, 255, 0.03)" stroke-width="8" fill="transparent" r="42" cx="80" cy="80"/>
+                                    <circle class="progress-ring__circle" id="user-water-ring" stroke="url(#user-water-grad)" stroke-width="8" stroke-dasharray="264" stroke-dashoffset="264" stroke-linecap="round" fill="transparent" r="42" cx="80" cy="80"/>
                                 </svg>
                                 <div class="gauge-center">
                                     <span class="gauge-number" id="user-dashboard-cal-remaining">0</span>
@@ -108,6 +123,13 @@
                                     <div>
                                         <span class="stat-label">Total Consumed</span>
                                         <span class="stat-val" id="user-dashboard-cal-consumed">0 kcal</span>
+                                    </div>
+                                </div>
+                                <div class="cal-stat-item">
+                                    <span class="stat-circle dot-burned" style="background: #10b981; box-shadow: 0 0 6px #10b981;"></span>
+                                    <div>
+                                        <span class="stat-label">Exercise Burned</span>
+                                        <span class="stat-val" id="user-dashboard-cal-burned" style="color: #10b981;">0 kcal</span>
                                     </div>
                                 </div>
                             </div>
@@ -139,37 +161,25 @@
                         </div>
                     </div>
                     
-                    <!-- Water & Food Logging Grid -->
-                    <div class="logging-widgets-row">
-                        <!-- Water widget -->
-                        <div class="panel-card log-widget-box water-widget-box">
-                            <div class="box-header">
-                                <h3>Hydration Log</h3>
-                                <span class="box-value" id="user-dash-water-total">0 ml</span>
-                            </div>
-                            <p class="widget-subtitle">Goal: <span id="user-dash-water-target">0.0</span> Liters</p>
-                            
-                            <div class="water-cups-interactive">
-                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
-                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
-                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
-                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
-                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
-                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
-                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
-                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
-                            </div>
-                            <button class="btn-quick-water" id="btn-quick-add-water">
-                                <i data-lucide="plus"></i>
-                                <span>Log 250ml Water</span>
+                    <!-- Unified Quick Tracker Widget -->
+                    <div class="quick-log-card">
+                        <div class="quick-log-tabs">
+                            <button class="quick-log-tab-btn active" id="tab-log-food" data-log-tab="food" type="button">
+                                <i data-lucide="utensils"></i>
+                                <span>Food Log</span>
+                            </button>
+                            <button class="quick-log-tab-btn" id="tab-log-water" data-log-tab="water" type="button">
+                                <i data-lucide="droplet"></i>
+                                <span>Water Log</span>
+                            </button>
+                            <button class="quick-log-tab-btn" id="tab-log-exercise" data-log-tab="exercise" type="button">
+                                <i data-lucide="activity"></i>
+                                <span>Exercise Log</span>
                             </button>
                         </div>
-                        
-                        <!-- Quick Food Logger widget -->
-                        <div class="panel-card log-widget-box food-widget-box">
-                            <div class="box-header">
-                                <h3>Log Food Entry</h3>
-                            </div>
+
+                        <!-- Panel 1: Food Log -->
+                        <div class="quick-log-panel active" id="panel-log-food">
                             <div class="food-logger-toggle" style="display: flex; gap: 8px; margin-bottom: 16px;">
                                 <button type="button" class="btn-toggle active" id="btn-food-mode-select" style="flex: 1; padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: var(--text-secondary); cursor: pointer; font-size: 13px; font-family: 'Inter', sans-serif; transition: all var(--transition-fast);">Select Food</button>
                                 <button type="button" class="btn-toggle" id="btn-food-mode-custom" style="flex: 1; padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: var(--text-secondary); cursor: pointer; font-size: 13px; font-family: 'Inter', sans-serif; transition: all var(--transition-fast);">Custom Entry</button>
@@ -225,12 +235,92 @@
                                 </button>
                             </form>
                         </div>
-                        
-                        <!-- Today's Logged Foods Journal -->
-                        <div class="panel-card food-journal-card" style="margin-top: 24px;">
-                            <div class="box-header">
-                                <h3>Today's Food Journal</h3>
+
+                        <!-- Panel 2: Water Log -->
+                        <div class="quick-log-panel" id="panel-log-water">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
+                                <h4 style="font-family: var(--font-heading); font-size: 1.1rem; color: var(--text-primary); font-weight: 600;">Hydration Log</h4>
+                                <span class="box-value" id="user-dash-water-total" style="font-family: var(--font-heading); font-size: 1.3rem; color: var(--secondary-light); font-weight: 800;">0 ml</span>
                             </div>
+                            <p class="widget-subtitle" style="margin-bottom: 16px; font-size: 0.85rem; color: var(--text-secondary);">Goal: <span id="user-dash-water-target">0.0</span> Liters</p>
+                            
+                            <div class="water-cups-interactive" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
+                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
+                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
+                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
+                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
+                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
+                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
+                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
+                                <div class="water-cup-item" data-val="250"><i data-lucide="droplet"></i><span>250ml</span></div>
+                            </div>
+                            <button class="btn-quick-water" id="btn-quick-add-water" style="width: 100%;" type="button">
+                                <i data-lucide="plus"></i>
+                                <span>Log 250ml Water</span>
+                            </button>
+                        </div>
+
+                        <!-- Panel 3: Exercise Log -->
+                        <div class="quick-log-panel" id="panel-log-exercise">
+                            <form id="user-dash-exercise-form" class="dashboard-food-form">
+                                <div class="form-group-small" style="margin-bottom: 12px; width: 100%;">
+                                    <label for="exercise-select" style="display: block; margin-bottom: 6px; font-size: 12px; color: var(--text-secondary);">Activity Type</label>
+                                    <select id="exercise-select" class="styled-select" style="width: 100%; height: 38px;">
+                                        <option value="running">Running (8.0 METs)</option>
+                                        <option value="cycling">Cycling (6.0 METs)</option>
+                                        <option value="swimming">Swimming (7.0 METs)</option>
+                                        <option value="walking">Brisk Walking (3.5 METs)</option>
+                                        <option value="weightlifting">Weight Lifting (3.0 METs)</option>
+                                        <option value="yoga">Yoga (2.5 METs)</option>
+                                        <option value="custom">Custom Activity (Manual Calories)</option>
+                                    </select>
+                                </div>
+                                
+                                <!-- Custom Activity Name (for custom selection) -->
+                                <div class="form-group-small hidden" id="exercise-name-group" style="margin-bottom: 12px; width: 100%;">
+                                    <input type="text" id="exercise-name-input" placeholder="Custom Activity Name (e.g. Hiking)" class="styled-input-text" style="width: 100%; box-sizing: border-box; height: 38px;">
+                                </div>
+
+                                <div class="form-row-2" style="display: flex; gap: 16px; width: 100%;">
+                                    <div class="form-group-small" style="flex: 1;">
+                                        <label for="exercise-duration" style="display: block; margin-bottom: 6px; font-size: 12px; color: var(--text-secondary);">Duration (mins)</label>
+                                        <input type="number" id="exercise-duration" placeholder="Duration (min)" min="1" value="30" class="number-input-small" style="height: 38px; width: 100%;">
+                                    </div>
+                                    <div class="form-group-small hidden" id="exercise-calories-group" style="flex: 1;">
+                                        <label for="exercise-calories" style="display: block; margin-bottom: 6px; font-size: 12px; color: var(--text-secondary);">Calories Burned</label>
+                                        <input type="number" id="exercise-calories" placeholder="Calories (kcal)" min="0" class="number-input-small" style="height: 38px; width: 100%;">
+                                    </div>
+                                </div>
+
+                                <!-- Live Burn Preview -->
+                                <div class="food-live-preview" id="exercise-live-preview" style="margin-top: 14px; padding: 12px; border-radius: 8px; background: rgba(16, 185, 129, 0.08); border: 1px dashed rgba(16, 185, 129, 0.2); display: flex; justify-content: space-between; align-items: center;">
+                                    <span class="preview-metric" style="font-size: 14px; color: #10b981; font-weight: 600;">Est. Burned: <span id="exercise-preview-cal">0</span> kcal</span>
+                                    <span style="font-size: 11px; color: var(--text-secondary);">Based on weight</span>
+                                </div>
+
+                                <button type="submit" class="btn-quick-food" style="margin-top: 16px; width: 100%; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none;">
+                                    <i data-lucide="plus"></i>
+                                    <span>Log Exercise</span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Consolidated Activity Journals Card -->
+                    <div class="activity-journals-card">
+                        <div class="journals-tabs">
+                            <button class="journals-tab-btn active" id="tab-journal-food" data-journal-tab="food" type="button">
+                                <i data-lucide="utensils"></i>
+                                <span>Food Journal</span>
+                            </button>
+                            <button class="journals-tab-btn" id="tab-journal-exercise" data-journal-tab="exercise" type="button">
+                                <i data-lucide="activity"></i>
+                                <span>Exercise Journal</span>
+                            </button>
+                        </div>
+
+                        <!-- Panel 1: Food Journal -->
+                        <div class="journal-panel active" id="panel-journal-food">
                             <div class="table-scroll">
                                 <table class="styled-table" id="food-journal-table">
                                     <thead>
@@ -249,6 +339,29 @@
                                 <div class="empty-state-content" id="food-journal-empty-state" style="padding: 24px; text-align: center; color: var(--text-secondary);">
                                     <i data-lucide="utensils" style="margin: 0 auto 12px; width: 32px; height: 32px; opacity: 0.5; display: block;"></i>
                                     <p style="font-size: 13px;">No foods logged today. Start logging above to see details.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Panel 2: Exercise Journal -->
+                        <div class="journal-panel" id="panel-journal-exercise">
+                            <div class="table-scroll">
+                                <table class="styled-table" id="exercise-journal-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Activity</th>
+                                            <th>Duration</th>
+                                            <th>Calories</th>
+                                            <th style="text-align: right; width: 60px;">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="exercise-journal-tbody">
+                                        <!-- Dynamic exercise rows -->
+                                    </tbody>
+                                </table>
+                                <div class="empty-state-content" id="exercise-journal-empty-state" style="padding: 24px; text-align: center; color: var(--text-secondary);">
+                                    <i data-lucide="activity" style="margin: 0 auto 12px; width: 32px; height: 32px; opacity: 0.5; display: block;"></i>
+                                    <p style="font-size: 13px;">No exercises logged today. Log workout above to see details.</p>
                                 </div>
                             </div>
                         </div>
@@ -311,6 +424,13 @@
                                 <div class="progress-bar-fill-goal" id="user-dash-weight-progress-bar" style="width: 0%"></div>
                             </div>
                             <p class="goal-desc-text" id="user-dash-weight-goal-text">Recalculate or log weight to update goal metrics.</p>
+                            
+                            <!-- Weight Goal Forecast Projection -->
+                            <div id="user-dashboard-weight-projection" class="projection-box hidden" style="margin-top: 16px; padding: 12px; border-radius: var(--radius-md); background: rgba(6, 182, 212, 0.05); border: 1px dashed rgba(6, 182, 212, 0.2); text-align: center;">
+                                <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; font-weight: 600;">Projected Goal Achievement</span>
+                                <strong id="val-projected-date" style="font-family: var(--font-heading); font-size: 1.1rem; color: var(--secondary-light);">September 24, 2026</strong>
+                                <span id="val-projected-days-left" style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 2px;">(76 days remaining at current rate)</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1261,6 +1381,47 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Mobile Bottom Navigation Bar -->
+    <nav class="mobile-bottom-nav">
+        <button class="mobile-nav-tab" data-tab="dashboard" type="button">
+            <i data-lucide="layout-dashboard"></i>
+            <span>Dashboard</span>
+        </button>
+        <button class="mobile-nav-tab active" data-tab="calculator" type="button">
+            <i data-lucide="user-cog"></i>
+            <span>Profile</span>
+        </button>
+        <button class="mobile-nav-tab" data-tab="history" type="button">
+            <i data-lucide="line-chart"></i>
+            <span>Weight</span>
+        </button>
+        <button class="mobile-nav-tab hidden" id="mobile-tab-admin" data-tab="admin" type="button">
+            <i data-lucide="shield"></i>
+            <span>Admin</span>
+        </button>
+    </nav>
+
+    <!-- Floating Action Button (FAB) Launcher -->
+    <div class="fab-wrapper" id="fab-wrapper">
+        <div class="fab-radial-menu" id="fab-radial-menu">
+            <button type="button" class="fab-shortcut-btn" id="fab-shortcut-food" title="Log Food">
+                <i data-lucide="utensils"></i>
+                <span class="shortcut-label">Log Food</span>
+            </button>
+            <button type="button" class="fab-shortcut-btn" id="fab-shortcut-water" title="Quick Add Water">
+                <i data-lucide="droplet"></i>
+                <span class="shortcut-label">+250ml Water</span>
+            </button>
+            <button type="button" class="fab-shortcut-btn" id="fab-shortcut-exercise" title="Log Exercise">
+                <i data-lucide="activity"></i>
+                <span class="shortcut-label">Log Workout</span>
+            </button>
+        </div>
+        <button type="button" class="fab-trigger" id="fab-trigger" title="Quick Action Menu">
+            <i data-lucide="plus"></i>
+        </button>
     </div>
 
     <!-- Bootstrap Session Script -->

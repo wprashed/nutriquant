@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let predefinedFoods = [];
     let foodLoggingMode = 'select'; // 'select' or 'custom'
     let selectedAutocompleteFood = null;
+    let currentUserWeight = 70.0;
 
     // SaaS Admin Console caching & pagination state
     let allUsersData = [];
@@ -114,6 +115,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const tabDashboard = document.getElementById('tab-dashboard');
     const tabCalculator = document.getElementById('tab-calculator');
 
+    // Mobile Bottom Tab Navigation Elements
+    const mobileDashboard = document.querySelector('.mobile-nav-tab[data-tab="dashboard"]');
+    const mobileCalculator = document.querySelector('.mobile-nav-tab[data-tab="calculator"]');
+    const mobileHistory = document.querySelector('.mobile-nav-tab[data-tab="history"]');
+    const mobileAdmin = document.getElementById('mobile-tab-admin');
+
     // User Dashboard DOM Elements
     const userDashboardGreeting = document.getElementById('user-dashboard-greeting');
     const userCalorieRing = document.getElementById('user-calorie-ring');
@@ -137,6 +144,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const foodLogProtein = document.getElementById('food-log-protein');
     const foodLogCarbs = document.getElementById('food-log-carbs');
     const foodLogFat = document.getElementById('food-log-fat');
+    
+    // Daily Exercise Logger Elements
+    const userDashExerciseForm = document.getElementById('user-dash-exercise-form');
+    const exerciseSelect = document.getElementById('exercise-select');
+    const exerciseNameGroup = document.getElementById('exercise-name-group');
+    const exerciseNameInput = document.getElementById('exercise-name-input');
+    const exerciseDuration = document.getElementById('exercise-duration');
+    const exerciseCaloriesGroup = document.getElementById('exercise-calories-group');
+    const exerciseCalories = document.getElementById('exercise-calories');
+    const exerciseLivePreview = document.getElementById('exercise-live-preview');
+    const exercisePreviewCal = document.getElementById('exercise-preview-cal');
+    const exerciseJournalTable = document.getElementById('exercise-journal-table');
+    const exerciseJournalTbody = document.getElementById('exercise-journal-tbody');
+    const exerciseJournalEmptyState = document.getElementById('exercise-journal-empty-state');
+    const userDashboardCalBurned = document.getElementById('user-dashboard-cal-burned');
     
     const userDashboardChecklist = document.getElementById('user-dashboard-checklist');
     const userCoachingNotesList = document.getElementById('user-coaching-notes-list');
@@ -462,6 +484,16 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             tab.classList.add('active');
+
+            // Sync mobile bottom tab active classes
+            const mobTabs = document.querySelectorAll('.mobile-nav-tab');
+            mobTabs.forEach(m => {
+                if (m.dataset.tab === tab.dataset.tab) {
+                    m.classList.add('active');
+                } else {
+                    m.classList.remove('active');
+                }
+            });
             const targetPanel = document.getElementById(`panel-${tab.dataset.tab}`);
             if (targetPanel) {
                 targetPanel.classList.add('active');
@@ -479,6 +511,51 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (session.isLoggedIn && !session.isAdmin) {
                     fetchAndFillProfile();
                 }
+            }
+        });
+    });
+
+    // Mobile Bottom Tab Click Handler
+    const mobileTabs = document.querySelectorAll('.mobile-nav-tab');
+    mobileTabs.forEach(mobTab => {
+        mobTab.addEventListener('click', () => {
+            const correspondingTopTab = document.querySelector(`.nav-tab[data-tab="${mobTab.dataset.tab}"]`);
+            if (correspondingTopTab) {
+                correspondingTopTab.click();
+            }
+        });
+    });
+
+    // Consolidated Quick-Logger tabs handler
+    const quickLogTabBtns = document.querySelectorAll('.quick-log-tab-btn');
+    const quickLogPanels = document.querySelectorAll('.quick-log-panel');
+    quickLogTabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            quickLogTabBtns.forEach(b => b.classList.remove('active'));
+            quickLogPanels.forEach(p => p.classList.remove('active'));
+            
+            btn.classList.add('active');
+            const targetPanel = document.getElementById(`panel-log-${btn.dataset.logTab}`);
+            if (targetPanel) {
+                targetPanel.classList.add('active');
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+        });
+    });
+
+    // Consolidated Activity Journal tabs handler
+    const journalTabBtns = document.querySelectorAll('.journals-tab-btn');
+    const journalPanels = document.querySelectorAll('.journal-panel');
+    journalTabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            journalTabBtns.forEach(b => b.classList.remove('active'));
+            journalPanels.forEach(p => p.classList.remove('active'));
+            
+            btn.classList.add('active');
+            const targetPanel = document.getElementById(`panel-journal-${btn.dataset.journalTab}`);
+            if (targetPanel) {
+                targetPanel.classList.add('active');
+                if (typeof lucide !== 'undefined') lucide.createIcons();
             }
         });
     });
@@ -544,11 +621,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 tabDashboard.classList.add('hidden');
                 tabHistory.classList.add('hidden');
                 tabCalculator.classList.add('hidden');
+
+                if (mobileAdmin) mobileAdmin.classList.remove('hidden');
+                if (mobileDashboard) mobileDashboard.classList.add('hidden');
+                if (mobileHistory) mobileHistory.classList.add('hidden');
+                if (mobileCalculator) mobileCalculator.classList.add('hidden');
             } else {
                 tabDashboard.classList.remove('hidden');
                 tabHistory.classList.remove('hidden');
                 tabCalculator.classList.remove('hidden');
                 tabAdmin.classList.add('hidden');
+
+                if (mobileDashboard) mobileDashboard.classList.remove('hidden');
+                if (mobileHistory) mobileHistory.classList.remove('hidden');
+                if (mobileCalculator) mobileCalculator.classList.remove('hidden');
+                if (mobileAdmin) mobileAdmin.classList.add('hidden');
             }
         } else {
             btnShowAuth.classList.remove('hidden');
@@ -557,6 +644,11 @@ document.addEventListener('DOMContentLoaded', () => {
             tabHistory.classList.add('hidden');
             tabAdmin.classList.add('hidden');
             tabCalculator.classList.remove('hidden');
+
+            if (mobileDashboard) mobileDashboard.classList.add('hidden');
+            if (mobileHistory) mobileHistory.classList.add('hidden');
+            if (mobileAdmin) mobileAdmin.classList.add('hidden');
+            if (mobileCalculator) mobileCalculator.classList.remove('hidden');
             
             // Reset settings avatar details
             const settingsAvatarInitials = document.getElementById('settings-avatar-initials');
@@ -1010,9 +1102,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const row = `
                 <tr>
-                    <td>${log.logged_at}</td>
-                    <td><strong>${weightDisplay}</strong></td>
-                    <td>
+                    <td data-label="Date">${log.logged_at}</td>
+                    <td data-label="Weight"><strong>${weightDisplay}</strong></td>
+                    <td data-label="Actions" style="text-align: right;">
                         <button class="btn-delete-log" data-date="${log.logged_at}" title="Load weight logs">
                             <i data-lucide="edit-3"></i>
                         </button>
@@ -2098,6 +2190,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const isMetric = unitMetric.checked;
         const daily = data.daily_log;
         
+        if (data.user && data.user.weight_kg) {
+            currentUserWeight = data.user.weight_kg;
+        }
+        
         // 1. Check if user profile exists
         if (!data.user.age || !data.user.height_cm || !data.user.weight_kg) {
             welcomeMsg.textContent = "Welcome to NutriQuant! Go to the Calculator tab to set up your profile and generate targets.";
@@ -2151,14 +2247,34 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Render Calories Ring
             const consumedCal = daily.calories || 0;
-            const remainingCal = Math.max(0, targetCal - consumedCal);
+            const burnedCal = data.total_exercise_calories || 0;
+            const remainingCal = Math.max(0, targetCal - consumedCal + burnedCal);
             userDashboardCalRemaining.textContent = formatNumber(remainingCal);
             userDashboardCalTarget.textContent = `${formatNumber(targetCal)} kcal`;
             userDashboardCalConsumed.textContent = `${formatNumber(consumedCal)} kcal`;
+            if (userDashboardCalBurned) {
+                userDashboardCalBurned.textContent = `${formatNumber(burnedCal)} kcal`;
+            }
             
             const calorieRing = document.getElementById('user-calorie-ring');
-            const calPercentage = targetCal > 0 ? Math.min(1.0, consumedCal / targetCal) : 0;
-            calorieRing.style.strokeDashoffset = 415 - (415 * calPercentage);
+            const netConsumed = Math.max(0, consumedCal - burnedCal);
+            const calPercentage = targetCal > 0 ? Math.min(1.0, netConsumed / targetCal) : 0;
+            if (calorieRing) {
+                calorieRing.style.strokeDashoffset = 415 - (415 * calPercentage);
+            }
+
+            const proteinRing = document.getElementById('user-protein-ring');
+            if (proteinRing) {
+                const proPercentage = proTarget > 0 ? Math.min(1.0, proConsumed / proTarget) : 0;
+                proteinRing.style.strokeDashoffset = 339 - (339 * proPercentage);
+            }
+
+            const waterRing = document.getElementById('user-water-ring');
+            if (waterRing) {
+                const waterTargetMl = (waterTargetL || 0) * 1000;
+                const waterPercentage = waterTargetMl > 0 ? Math.min(1.0, waterMl / waterTargetMl) : 0;
+                waterRing.style.strokeDashoffset = 264 - (264 * waterPercentage);
+            }
             
             // Render Macros Bars
             const proConsumed = daily.protein || 0;
@@ -2228,6 +2344,45 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             userDashWeightProgressBar.style.width = `${weightPct}%`;
 
+            // Calculate weight projection forecast
+            const projectionBox = document.getElementById('user-dashboard-weight-projection');
+            const valProjectedDate = document.getElementById('val-projected-date');
+            const valProjectedDaysLeft = document.getElementById('val-projected-days-left');
+
+            if (projectionBox && valProjectedDate && valProjectedDaysLeft) {
+                const goalType = data.user.goal;
+                let daysToTarget = 0;
+                
+                if (goalType.includes('lose')) {
+                    const diff = currentW - targetW;
+                    if (diff > 0) {
+                        const rate = goalType === 'lose' ? 500 : 250;
+                        daysToTarget = Math.ceil((diff * 7700) / rate);
+                    }
+                } else if (goalType.includes('gain')) {
+                    const diff = targetW - currentW;
+                    if (diff > 0) {
+                        const rate = goalType === 'gain' ? 500 : 250;
+                        daysToTarget = Math.ceil((diff * 7700) / rate);
+                    }
+                }
+                
+                if (daysToTarget > 0 && daysToTarget < 365 * 5) {
+                    const projDate = new Date();
+                    projDate.setDate(projDate.getDate() + daysToTarget);
+                    const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+                    valProjectedDate.textContent = projDate.toLocaleDateString(undefined, dateOptions);
+                    valProjectedDaysLeft.textContent = `(${daysToTarget} days remaining at target rate)`;
+                    projectionBox.classList.remove('hidden');
+                } else if ((goalType.includes('lose') && currentW <= targetW) || (goalType.includes('gain') && currentW >= targetW)) {
+                    valProjectedDate.textContent = "Goal Achieved!";
+                    valProjectedDaysLeft.textContent = "Congratulations on reaching your target weight!";
+                    projectionBox.classList.remove('hidden');
+                } else {
+                    projectionBox.classList.add('hidden');
+                }
+            }
+
             // Compute dynamic automated achievements
             const loggedWeight = !!data.weight_logged_today;
             const metCalorie = consumedCal > 0 && consumedCal <= targetCal;
@@ -2282,6 +2437,59 @@ document.addEventListener('DOMContentLoaded', () => {
                     })
                 });
             }
+
+            // Render Exercise Journal
+            if (exerciseJournalTbody) {
+                exerciseJournalTbody.innerHTML = '';
+                const logs = data.exercise_logs || [];
+                
+                if (logs.length === 0) {
+                    if (exerciseJournalEmptyState) exerciseJournalEmptyState.classList.remove('hidden');
+                } else {
+                    if (exerciseJournalEmptyState) exerciseJournalEmptyState.classList.add('hidden');
+                    
+                    logs.forEach(log => {
+                        const row = `
+                            <tr>
+                                <td data-label="Activity"><strong>${log.activity_type}</strong></td>
+                                <td data-label="Duration">${log.duration_min} mins</td>
+                                <td data-label="Calories" style="color: #10b981; font-weight: 600;">+${log.calories_burned} kcal</td>
+                                <td data-label="Actions" style="text-align: right;">
+                                    <button class="btn-icon btn-danger-action btn-delete-exercise" data-id="${log.id}" title="Delete Log">
+                                        <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                        exerciseJournalTbody.insertAdjacentHTML('beforeend', row);
+                    });
+                    
+                    // Re-initialize lucide icons inside the table
+                    lucide.createIcons();
+                    
+                    // Wire Delete buttons
+                    exerciseJournalTbody.querySelectorAll('.btn-delete-exercise').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            const logId = btn.dataset.id;
+                            if (confirm("Are you sure you want to delete this exercise log?")) {
+                                fetch(`/api/user/exercise/${logId}`, {
+                                    method: 'DELETE'
+                                })
+                                .then(res => res.json())
+                                .then(resData => {
+                                    if (resData.success) {
+                                        loadUserDashboard();
+                                    } else {
+                                        alert(resData.error || "Failed to delete exercise log.");
+                                    }
+                                })
+                                .catch(err => console.log("Error deleting exercise log:", err));
+                            }
+                        });
+                    });
+                }
+            }
         })
         .catch(err => console.log(err.message));
         
@@ -2327,17 +2535,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 logs.forEach(log => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td><strong>${log.food_name}</strong></td>
-                        <td>${log.amount_g} g</td>
-                        <td>${log.calories} kcal</td>
-                        <td>
+                        <td data-label="Food Item"><strong>${log.food_name}</strong></td>
+                        <td data-label="Amount">${log.amount_g} g</td>
+                        <td data-label="Calories">${log.calories} kcal</td>
+                        <td data-label="Macros (P/C/F)">
                             <div style="font-size: 11px; color: var(--text-secondary);">
                                 P: <span style="color: var(--text-primary); font-weight: 500;">${log.protein}g</span> | 
                                 C: <span style="color: var(--text-primary); font-weight: 500;">${log.carbs}g</span> | 
                                 F: <span style="color: var(--text-primary); font-weight: 500;">${log.fat}g</span>
                             </div>
                         </td>
-                        <td style="text-align: right;">
+                        <td data-label="Actions" style="text-align: right;">
                             <button type="button" class="btn-delete-log" data-id="${log.id}" title="Remove entry">
                                 <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
                             </button>
@@ -2480,6 +2688,112 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadUserDashboard();
             })
             .catch(err => console.log("Error logging food:", err));
+        });
+    }
+    // Update live estimated burned calories preview
+    function updateExerciseBurnPreview() {
+        if (!exerciseSelect || !exerciseDuration || !exercisePreviewCal) return;
+        const val = exerciseSelect.value;
+        if (val === 'custom') {
+            exercisePreviewCal.textContent = '0';
+            return;
+        }
+
+        const duration = parseInt(exerciseDuration.value) || 0;
+        if (duration <= 0) {
+            exercisePreviewCal.textContent = '0';
+            return;
+        }
+
+        // MET values
+        const mets = {
+            running: 8.0,
+            cycling: 6.0,
+            swimming: 7.0,
+            walking: 3.5,
+            weightlifting: 3.0,
+            yoga: 2.5
+        };
+        const met = mets[val] || 3.0;
+        const weight = currentUserWeight || 70.0;
+        const calories = Math.round(met * 3.5 * weight / 200.0 * duration);
+        exercisePreviewCal.textContent = calories;
+    }
+
+    if (exerciseSelect) {
+        exerciseSelect.addEventListener('change', () => {
+            const val = exerciseSelect.value;
+            if (val === 'custom') {
+                if (exerciseNameGroup) exerciseNameGroup.classList.remove('hidden');
+                if (exerciseCaloriesGroup) exerciseCaloriesGroup.classList.remove('hidden');
+                if (exerciseLivePreview) exerciseLivePreview.classList.add('hidden');
+            } else {
+                if (exerciseNameGroup) exerciseNameGroup.classList.add('hidden');
+                if (exerciseCaloriesGroup) exerciseCaloriesGroup.classList.add('hidden');
+                if (exerciseLivePreview) exerciseLivePreview.classList.remove('hidden');
+                updateExerciseBurnPreview();
+            }
+        });
+    }
+
+    if (exerciseDuration) {
+        exerciseDuration.addEventListener('input', updateExerciseBurnPreview);
+    }
+
+    // Initial calculation preview call
+    updateExerciseBurnPreview();
+
+    // Wire Log Exercise submit
+    if (userDashExerciseForm) {
+        userDashExerciseForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const todayStr = new Date().toISOString().split('T')[0];
+            const val = exerciseSelect.value;
+            let activityType = "";
+            let calories = null;
+            const duration = parseInt(exerciseDuration.value);
+
+            if (isNaN(duration) || duration <= 0) {
+                alert("Please enter a valid exercise duration.");
+                return;
+            }
+
+            if (val === 'custom') {
+                activityType = exerciseNameInput.value.trim() || 'Custom Workout';
+                calories = parseInt(exerciseCalories.value);
+                if (isNaN(calories) || calories < 0) {
+                    alert("Please enter valid calories burned.");
+                    return;
+                }
+            } else {
+                activityType = exerciseSelect.options[exerciseSelect.selectedIndex].text.split(" (")[0];
+                calories = parseInt(exercisePreviewCal.textContent) || 0;
+            }
+
+            fetch('/api/user/exercise', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    date_str: todayStr,
+                    activity_type: activityType,
+                    duration_min: duration,
+                    calories_burned: calories
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    userDashExerciseForm.reset();
+                    if (exerciseNameGroup) exerciseNameGroup.classList.add('hidden');
+                    if (exerciseCaloriesGroup) exerciseCaloriesGroup.classList.add('hidden');
+                    if (exerciseLivePreview) exerciseLivePreview.classList.remove('hidden');
+                    updateExerciseBurnPreview();
+                    loadUserDashboard();
+                } else {
+                    alert(data.error || "Failed to log exercise.");
+                }
+            })
+            .catch(err => console.log("Error logging exercise:", err));
         });
     }
 
@@ -2682,4 +2996,73 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Call food initialization on load
     fetchPredefinedFoods();
+
+    // ==========================================================================
+    // FAB Menu Toggles & Radial Shortcuts Logic
+    // ==========================================================================
+    const fabWrapper = document.getElementById('fab-wrapper');
+    const fabTrigger = document.getElementById('fab-trigger');
+    if (fabTrigger && fabWrapper) {
+        fabTrigger.addEventListener('click', () => {
+            fabWrapper.classList.toggle('active');
+        });
+    }
+
+    // Close FAB when clicking elsewhere
+    document.addEventListener('click', (e) => {
+        if (fabWrapper && !fabWrapper.contains(e.target) && fabWrapper.classList.contains('active')) {
+            fabWrapper.classList.remove('active');
+        }
+    });
+
+    const fabShortcutFood = document.getElementById('fab-shortcut-food');
+    const fabShortcutWater = document.getElementById('fab-shortcut-water');
+    const fabShortcutExercise = document.getElementById('fab-shortcut-exercise');
+
+    if (fabShortcutFood) {
+        fabShortcutFood.addEventListener('click', () => {
+            if (fabWrapper) fabWrapper.classList.remove('active');
+            
+            // Switch page to Dashboard
+            const tabDash = document.getElementById('tab-dashboard');
+            if (tabDash) tabDash.click();
+            
+            // Switch unified logger to Food Log tab
+            const foodLogTab = document.getElementById('tab-log-food');
+            if (foodLogTab) foodLogTab.click();
+            
+            // Scroll to the logger widget
+            const quickLogWidget = document.querySelector('.quick-log-card');
+            if (quickLogWidget) quickLogWidget.scrollIntoView({ behavior: 'smooth' });
+        });
+    }
+
+    if (fabShortcutWater) {
+        fabShortcutWater.addEventListener('click', () => {
+            if (fabWrapper) fabWrapper.classList.remove('active');
+            
+            // Trigger quick water log event
+            if (btnQuickAddWater) {
+                btnQuickAddWater.click();
+            }
+        });
+    }
+
+    if (fabShortcutExercise) {
+        fabShortcutExercise.addEventListener('click', () => {
+            if (fabWrapper) fabWrapper.classList.remove('active');
+            
+            // Switch page to Dashboard
+            const tabDash = document.getElementById('tab-dashboard');
+            if (tabDash) tabDash.click();
+            
+            // Switch unified logger to Exercise Log tab
+            const exerciseLogTab = document.getElementById('tab-log-exercise');
+            if (exerciseLogTab) exerciseLogTab.click();
+            
+            // Scroll to logger
+            const quickLogWidget = document.querySelector('.quick-log-card');
+            if (quickLogWidget) quickLogWidget.scrollIntoView({ behavior: 'smooth' });
+        });
+    }
 });

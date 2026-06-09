@@ -1,10 +1,61 @@
 import math
+import os
 from flask import Flask, jsonify, request, render_template, session
 from functools import wraps
 import db
 
 app = Flask(__name__)
-app.secret_key = 'nutri_quant_secure_secret_key_2026'
+app.secret_key = os.environ.get('NUTRIQUANT_SECRET_KEY', 'dev-only-change-me')
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=os.environ.get('NUTRIQUANT_COOKIE_SECURE', '').lower() == 'true'
+)
+
+PLAN_FEATURES = {
+    "free": {
+        "label": "Free",
+        "price": 0,
+        "features": [
+            "Nutrition calculator",
+            "Daily calorie and macro targets",
+            "Basic weight tracking"
+        ],
+        "limits": {
+            "coach_messaging": False,
+            "custom_targets": False,
+            "team_console": False
+        }
+    },
+    "premium": {
+        "label": "Premium",
+        "price": 29,
+        "features": [
+            "Daily food, water, and exercise logs",
+            "Coach notes and custom target overrides",
+            "Progress dashboards"
+        ],
+        "limits": {
+            "coach_messaging": True,
+            "custom_targets": True,
+            "team_console": False
+        }
+    },
+    "enterprise": {
+        "label": "Enterprise",
+        "price": 99,
+        "features": [
+            "Coach/admin client console",
+            "Subscription and audit analytics",
+            "Managed food database"
+        ],
+        "limits": {
+            "coach_messaging": True,
+            "custom_targets": True,
+            "team_console": True
+        }
+    }
+}
 
 # Initialise database on startup
 db.init_db()
@@ -22,6 +73,18 @@ def admin_required(f):
             return jsonify({"error": "Forbidden: Admin access required."}), 403
         return f(*args, **kwargs)
     return decorated_function
+
+def public_user_payload(user):
+    """Return non-sensitive user data with plan metadata for the client UI."""
+    payload = dict(user)
+    payload.pop('password_hash', None)
+    payload['is_admin'] = bool(payload.get('is_admin', 0))
+    tier = (payload.get('subscription_tier') or 'free').lower()
+    if tier not in PLAN_FEATURES:
+        tier = 'free'
+    payload['subscription_tier'] = tier
+    payload['plan'] = PLAN_FEATURES[tier]
+    return payload
 
 def get_micronutrients(age, gender):
     """
@@ -202,30 +265,31 @@ def get_profile():
     user = db.get_user_by_id(session['user_id'])
     if not user:
         return jsonify({"error": "User not found"}), 404
-        
-    user = dict(user)
-    user.pop('password_hash', None)
-    user['is_admin'] = bool(user.get('is_admin', 0))
-    user['custom_calories'] = user.get('custom_calories')
-    user['custom_protein'] = user.get('custom_protein')
-    user['custom_carbs'] = user.get('custom_carbs')
-    user['custom_fat'] = user.get('custom_fat')
-    return jsonify({"user": user})
 
-@app.route('/api/user/subscription', methods=['POST'])
-def update_my_subscription():
+    return jsonify({"user": public_user_payload(user)})
+
+@app.route('/api/user/subscription', methods=['GET', 'POST'])
+def get_my_subscription():
     if 'user_id' not in session:
         return jsonify({"error": "Unauthorized"}), 401
     try:
-        data = request.get_json() or {}
-        tier = data.get('subscription_tier', data.get('tier', 'free')).strip().lower()
-        if tier not in ['free', 'premium', 'enterprise']:
-            return jsonify({"error": "Invalid subscription tier."}), 400
-            
-        success = db.update_user_subscription(session['user_id'], tier)
-        if success:
-            return jsonify({"success": True, "subscription_tier": tier})
-        return jsonify({"error": "Failed to update subscription."}), 400
+        user = db.get_user_by_id(session['user_id'])
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        payload = public_user_payload(user)
+        if request.method == 'POST':
+            return jsonify({
+                "error": "Subscription upgrades are managed by an administrator or billing integration.",
+                "subscription_tier": payload['subscription_tier'],
+                "plan": payload['plan']
+            }), 403
+
+        return jsonify({
+            "success": True,
+            "subscription_tier": payload['subscription_tier'],
+            "plan": payload['plan']
+        })
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
@@ -300,6 +364,10 @@ def get_user_dashboard():
         # Get individual food logs
         food_logs = db.get_food_logs_for_date(user_id, date_str)
         
+        # Get individual exercise logs and total burned
+        exercise_logs = db.get_exercise_logs(user_id, date_str)
+        total_exercise_calories = db.get_total_exercise_calories(user_id, date_str)
+        
         # Check if weight is logged for this date
         weight_logged_today = False
         for log in weight_history:
@@ -328,8 +396,97 @@ def get_user_dashboard():
             "coaching_notes": notes,
             "weight_history": weight_history,
             "food_logs": food_logs,
-            "weight_logged_today": weight_logged_today
+            "weight_logged_today": weight_logged_today,
+            "exercise_logs": exercise_logs,
+            "total_exercise_calories": total_exercise_calories
         })
+    except Exception as e:
+        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+
+# -------------------------------------------------------------
+# Exercise Logging API
+# -------------------------------------------------------------
+@app.route('/api/user/exercise', methods=['POST'])
+def log_exercise():
+    if 'user_id' not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        data = request.get_json() or {}
+        date_str = data.get('date_str')
+        activity_type = data.get('activity_type', '').strip()
+        duration_min = data.get('duration_min')
+        calories_burned = data.get('calories_burned')
+
+        if not date_str or not activity_type or duration_min is None:
+            return jsonify({"error": "Date, activity type, and duration are required."}), 400
+
+        try:
+            duration_min = int(duration_min)
+            if duration_min <= 0:
+                raise ValueError()
+        except ValueError:
+            return jsonify({"error": "Duration must be a positive integer."}), 400
+
+        # Auto estimate calories if not provided
+        if calories_burned is None or str(calories_burned).strip() == '':
+            # Fetch user weight for calculation
+            user = db.get_user_by_id(session['user_id'])
+            weight_kg = user.get('weight_kg', 70.0) if user else 70.0
+            if not weight_kg or weight_kg <= 0:
+                weight_kg = 70.0
+
+            # METs estimation
+            mets_map = {
+                'running': 8.0,
+                'cycling': 6.0,
+                'swimming': 7.0,
+                'walking': 3.5,
+                'weightlifting': 3.0,
+                'yoga': 2.5
+            }
+            activity_key = activity_type.lower().replace(" ", "")
+            met = mets_map.get(activity_key, 3.0) # default MET
+
+            # Formula: Calories = MET * 3.5 * weight_kg / 200 * duration_min
+            calories_burned = int(met * 3.5 * weight_kg / 200.0 * duration_min)
+        else:
+            try:
+                calories_burned = int(calories_burned)
+                if calories_burned < 0:
+                    raise ValueError()
+            except ValueError:
+                return jsonify({"error": "Calories burned must be a non-negative integer."}), 400
+
+        log_id = db.add_exercise_log(session['user_id'], date_str, activity_type, duration_min, calories_burned)
+        if log_id:
+            total_burned = db.get_total_exercise_calories(session['user_id'], date_str)
+            logs = db.get_exercise_logs(session['user_id'], date_str)
+            return jsonify({"success": True, "log_id": log_id, "total_exercise_calories": total_burned, "logs": logs})
+        return jsonify({"error": "Failed to log exercise."}), 400
+    except Exception as e:
+        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+
+@app.route('/api/user/exercise/<int:log_id>', methods=['DELETE'])
+def delete_exercise(log_id):
+    if 'user_id' not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        conn = db.get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT logged_date FROM exercise_logs WHERE id = ? AND user_id = ?", (log_id, session['user_id']))
+        row = cursor.fetchone()
+        conn.close()
+        
+        if not row:
+            return jsonify({"error": "Exercise log not found."}), 404
+            
+        date_str = row['logged_date']
+        success = db.delete_exercise_log(log_id, session['user_id'])
+        if success:
+            total_burned = db.get_total_exercise_calories(session['user_id'], date_str)
+            logs = db.get_exercise_logs(session['user_id'], date_str)
+            return jsonify({"success": True, "total_exercise_calories": total_burned, "logs": logs})
+        return jsonify({"error": "Failed to delete exercise log."}), 400
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 

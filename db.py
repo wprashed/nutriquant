@@ -735,6 +735,20 @@ def init_db():
         )
     ''')
 
+    # 7. Daily Exercise Logs Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS exercise_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            logged_date TEXT NOT NULL,
+            activity_type TEXT NOT NULL,
+            duration_min INTEGER NOT NULL,
+            calories_burned INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    ''')
+
     
     # 5. Seed Default Admin User if not exists
     cursor.execute("SELECT * FROM users WHERE username = 'admin'")
@@ -1377,4 +1391,66 @@ def update_user_subscription(user_id, tier):
         return False
     finally:
         conn.close()
+
+
+# -------------------------------------------------------------
+# Exercise Logging (B2C)
+# -------------------------------------------------------------
+def add_exercise_log(user_id, date_str, activity_type, duration_min, calories_burned):
+    """Inserts a new exercise log entry into the database."""
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            INSERT INTO exercise_logs (user_id, logged_date, activity_type, duration_min, calories_burned)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (user_id, date_str.strip(), activity_type.strip(), int(duration_min), int(calories_burned)))
+        conn.commit()
+        return cursor.lastrowid
+    except Exception:
+        return None
+    finally:
+        conn.close()
+
+def get_exercise_logs(user_id, date_str):
+    """Fetches all exercise logs for a user on a given date."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT * FROM exercise_logs 
+        WHERE user_id = ? AND logged_date = ?
+        ORDER BY id ASC
+    ''', (user_id, date_str.strip()))
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def delete_exercise_log(log_id, user_id):
+    """Deletes an exercise log entry if it belongs to the user."""
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            DELETE FROM exercise_logs
+            WHERE id = ? AND user_id = ?
+        ''', (log_id, user_id))
+        conn.commit()
+        return cursor.rowcount > 0
+    except Exception:
+        return False
+    finally:
+        conn.close()
+
+def get_total_exercise_calories(user_id, date_str):
+    """Returns the total calories burned from exercise for a user on a date."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT SUM(calories_burned) FROM exercise_logs
+        WHERE user_id = ? AND logged_date = ?
+    ''', (user_id, date_str.strip()))
+    result = cursor.fetchone()[0]
+    conn.close()
+    return int(result) if result else 0
+
 

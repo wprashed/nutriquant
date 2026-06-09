@@ -288,5 +288,61 @@ class NutriQuantTestCase(unittest.TestCase):
         first_log = data['logs'][0]
         self.assertEqual(first_log['action_type'], 'post_announcement')
 
+    def test_exercise_logging(self):
+        # Register and login a client
+        self.register_user('exercise_user', 'pass123')
+        self.login_user('exercise_user', 'pass123')
+        user = self.get_user_by_username('exercise_user')
+        user_id = user['id']
+
+        # Update weight to 80.0 kg for calorie calculation testing
+        conn = db.get_db()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE users SET weight_kg = 80.0, age = 30, height_cm = 180, gender = 'male' WHERE id = ?", (user_id,))
+        conn.commit()
+        conn.close()
+
+        # Log exercise with auto-estimation (Running METs = 8.0)
+        # Calories = 8.0 * 3.5 * 80.0 / 200.0 * 30 mins = 336 kcal
+        res = self.client.post('/api/user/exercise', json={
+            'date_str': '2026-06-09',
+            'activity_type': 'Running',
+            'duration_min': 30
+        })
+        self.assertEqual(res.status_code, 200)
+        data = json.loads(res.data)
+        self.assertTrue(data['success'])
+        self.assertEqual(data['total_exercise_calories'], 336)
+        self.assertEqual(len(data['logs']), 1)
+        log_id = data['log_id']
+
+        # Log custom exercise with manually specified calories (e.g. 150 kcal)
+        res = self.client.post('/api/user/exercise', json={
+            'date_str': '2026-06-09',
+            'activity_type': 'Weight Lifting',
+            'duration_min': 45,
+            'calories_burned': 150
+        })
+        self.assertEqual(res.status_code, 200)
+        data = json.loads(res.data)
+        self.assertTrue(data['success'])
+        self.assertEqual(data['total_exercise_calories'], 486) # 336 + 150
+        self.assertEqual(len(data['logs']), 2)
+
+        # Check dashboard API to ensure exercises are included
+        res = self.client.get('/api/user/dashboard?date=2026-06-09')
+        self.assertEqual(res.status_code, 200)
+        dash_data = json.loads(res.data)
+        self.assertEqual(dash_data['total_exercise_calories'], 486)
+        self.assertEqual(len(dash_data['exercise_logs']), 2)
+
+        # Delete the first exercise log
+        res = self.client.delete(f'/api/user/exercise/{log_id}')
+        self.assertEqual(res.status_code, 200)
+        data = json.loads(res.data)
+        self.assertTrue(data['success'])
+        self.assertEqual(data['total_exercise_calories'], 150)
+        self.assertEqual(len(data['logs']), 1)
+
 if __name__ == '__main__':
     unittest.main()
