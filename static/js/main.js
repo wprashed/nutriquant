@@ -515,6 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     fetchAndFillProfile();
                 }
             }
+            updateFABVisibility();
         });
     });
 
@@ -632,8 +633,21 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.classList.toggle('is-admin', session.isLoggedIn && session.isAdmin);
     }
 
+    function updateFABVisibility() {
+        const fabWrapper = document.getElementById('fab-wrapper');
+        if (!fabWrapper) return;
+        const activeTab = document.querySelector('.nav-tab.active');
+        const activeTabName = activeTab ? activeTab.dataset.tab : '';
+        if (session.isAdmin || activeTabName === 'admin') {
+            fabWrapper.classList.add('hidden');
+        } else {
+            fabWrapper.classList.remove('hidden');
+        }
+    }
+
     function updateSessionUI() {
         applyRoleVisibility();
+        updateFABVisibility();
         if (session.isLoggedIn) {
             btnShowAuth.classList.add('hidden');
             userGreeting.classList.remove('hidden');
@@ -658,6 +672,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (mobileDashboard) mobileDashboard.classList.add('hidden');
                 if (mobileHistory) mobileHistory.classList.add('hidden');
                 if (mobileCalculator) mobileCalculator.classList.add('hidden');
+
+                const accountSettingsForm = document.getElementById('account-settings-form');
+                if (accountSettingsForm) accountSettingsForm.classList.add('hidden');
             } else {
                 tabDashboard.classList.remove('hidden');
                 tabHistory.classList.remove('hidden');
@@ -668,6 +685,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (mobileHistory) mobileHistory.classList.remove('hidden');
                 if (mobileCalculator) mobileCalculator.classList.remove('hidden');
                 if (mobileAdmin) mobileAdmin.classList.add('hidden');
+
+                const accountSettingsForm = document.getElementById('account-settings-form');
+                if (accountSettingsForm) accountSettingsForm.classList.remove('hidden');
             }
         } else {
             btnShowAuth.classList.remove('hidden');
@@ -690,6 +710,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 settingsProfileUsername.textContent = "User Profile";
             }
             
+            const accountSettingsForm = document.getElementById('account-settings-form');
+            if (accountSettingsForm) accountSettingsForm.classList.add('hidden');
+
             // Reset to Calculator view
             document.getElementById('tab-calculator').click();
         }
@@ -749,6 +772,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (user.is_admin) return; // Admins don't have biometrics profiles to fill
             updatePlanUI(user);
             fillOnboardingForm(user);
+
+            const accountFullname = document.getElementById('account-fullname');
+            const accountEmail = document.getElementById('account-email');
+            const accountPassword = document.getElementById('account-password');
+            if (accountFullname) accountFullname.value = user.full_name || '';
+            if (accountEmail) accountEmail.value = user.email || '';
+            if (accountPassword) accountPassword.value = '';
+
             if (!user.age) return;
 
             // Sync inputs
@@ -939,6 +970,62 @@ document.addEventListener('DOMContentLoaded', () => {
                     status.textContent = err.message;
                     status.className = 'status-banner error';
                 }
+            });
+        });
+    }
+
+    const accountSettingsForm = document.getElementById('account-settings-form');
+    if (accountSettingsForm) {
+        accountSettingsForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const fullName = document.getElementById('account-fullname').value;
+            const email = document.getElementById('account-email').value;
+            const password = document.getElementById('account-password').value;
+            const statusBanner = document.getElementById('account-settings-status');
+
+            statusBanner.classList.add('hidden');
+            statusBanner.classList.remove('success', 'error');
+
+            fetch('/api/profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    full_name: fullName,
+                    email: email,
+                    password: password
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    statusBanner.textContent = data.error;
+                    statusBanner.style.background = 'rgba(239, 68, 68, 0.1)';
+                    statusBanner.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+                    statusBanner.style.color = '#ef4444';
+                    statusBanner.classList.remove('hidden');
+                } else {
+                    statusBanner.textContent = "Account details saved successfully!";
+                    statusBanner.style.background = 'rgba(16, 185, 129, 0.1)';
+                    statusBanner.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+                    statusBanner.style.color = '#10b981';
+                    statusBanner.classList.remove('hidden');
+                    
+                    document.getElementById('account-password').value = '';
+                    
+                    if (data.user && data.user.full_name) {
+                        const settingsProfileUsername = document.getElementById('settings-profile-username');
+                        if (settingsProfileUsername) {
+                            settingsProfileUsername.textContent = data.user.full_name;
+                        }
+                    }
+                }
+            })
+            .catch(err => {
+                statusBanner.textContent = "An error occurred. Please try again.";
+                statusBanner.style.background = 'rgba(239, 68, 68, 0.1)';
+                statusBanner.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+                statusBanner.style.color = '#ef4444';
+                statusBanner.classList.remove('hidden');
             });
         });
     }
@@ -2340,21 +2427,104 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderMealPlan(mealPlan) {
         const preview = document.getElementById('meal-plan-preview');
         const shopping = document.getElementById('shopping-list-preview');
+        const btnViewFull = document.getElementById('btn-view-full-meal-plan');
         if (!preview) return;
+        
         if (!mealPlan || !mealPlan.plan || !mealPlan.plan.days) {
             preview.innerHTML = '<p class="empty-inbox-text">Generate a macro-aware weekly plan and shopping list from your current targets.</p>';
             if (shopping) shopping.innerHTML = '';
+            if (btnViewFull) btnViewFull.classList.add('hidden');
             return;
         }
+        
+        if (btnViewFull) btnViewFull.classList.remove('hidden');
+        
         preview.innerHTML = mealPlan.plan.days.slice(0, 2).map(day => `
             <div class="meal-plan-day">
                 <strong>${day.date}</strong>
                 ${day.meals.map(meal => `<p>${meal.name}: ${meal.food} (${meal.calories} kcal)</p>`).join('')}
             </div>
         `).join('');
+        
         const list = mealPlan.shopping || mealPlan.shopping_list || [];
         if (shopping) {
             shopping.innerHTML = list.slice(0, 8).map(item => `${item.item}: ${Math.round(item.amount_g)}g`).join(' • ');
+        }
+        
+        populateMealPlanModal(mealPlan);
+    }
+
+    function populateMealPlanModal(mealPlan) {
+        const targetsDiv = document.getElementById('meal-plan-modal-targets');
+        if (targetsDiv) {
+            const days = mealPlan.plan.days;
+            const targetCal = days[0]?.meals.reduce((sum, m) => sum + m.calories, 0) || 2000;
+            const targetProtein = days[0]?.meals.reduce((sum, m) => sum + m.protein, 0) || 120;
+            const targetCarbs = days[0]?.meals.reduce((sum, m) => sum + m.carbs, 0) || 200;
+            const targetFat = days[0]?.meals.reduce((sum, m) => sum + m.fat, 0) || 60;
+            
+            targetsDiv.innerHTML = `
+                <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-md); padding: 12px; text-align: center;">
+                    <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Daily Calories</span>
+                    <strong style="display: block; font-size: 1.25rem; color: #10b981; margin-top: 4px;">${targetCal} kcal</strong>
+                </div>
+                <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-md); padding: 12px; text-align: center;">
+                    <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Daily Protein</span>
+                    <strong style="display: block; font-size: 1.25rem; color: #3b82f6; margin-top: 4px;">${targetProtein}g</strong>
+                </div>
+                <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-md); padding: 12px; text-align: center;">
+                    <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Daily Carbs</span>
+                    <strong style="display: block; font-size: 1.25rem; color: #eab308; margin-top: 4px;">${targetCarbs}g</strong>
+                </div>
+                <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-md); padding: 12px; text-align: center;">
+                    <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Daily Fats</span>
+                    <strong style="display: block; font-size: 1.25rem; color: #ef4444; margin-top: 4px;">${targetFat}g</strong>
+                </div>
+            `;
+        }
+        
+        const scheduleDiv = document.getElementById('meal-plan-modal-schedule');
+        if (scheduleDiv) {
+            scheduleDiv.innerHTML = mealPlan.plan.days.map(day => {
+                const dateParts = day.date.split('-');
+                const dateObj = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
+                const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+                const displayDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                return `
+                    <div class="meal-plan-day-card" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: var(--radius-md); padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+                        <div style="border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-bottom: 6px; display: flex; justify-content: space-between; align-items: baseline;">
+                            <strong style="color: var(--text-primary); font-size: 1rem; font-family: var(--font-heading);">${dayName}</strong>
+                            <span style="font-size: 11px; color: var(--text-secondary);">${displayDate}</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 10px; flex: 1;">
+                            ${day.meals.map(meal => `
+                                <div style="font-size: 12px; line-height: 1.4;">
+                                    <span style="color: var(--secondary-light); font-weight: 600; text-transform: uppercase; font-size: 10px; display: block; letter-spacing: 0.5px;">${meal.name}</span>
+                                    <span style="color: var(--text-primary); font-weight: 500;">${meal.food}</span>
+                                    <span style="color: var(--text-secondary); display: block; font-size: 11px; margin-top: 2px;">
+                                        Portion: ${meal.amount_g}g • ${meal.calories} kcal<br/>
+                                        (P: ${meal.protein}g C: ${meal.carbs}g F: ${meal.fat}g)
+                                    </span>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div style="font-size: 10px; color: var(--text-muted); border-top: 1px dashed rgba(255, 255, 255, 0.05); padding-top: 6px; font-style: italic; margin-top: auto;">
+                            💡 Swap with similar calorie food if needed.
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        const shoppingDiv = document.getElementById('meal-plan-modal-shopping');
+        if (shoppingDiv) {
+            const list = mealPlan.shopping || mealPlan.shopping_list || [];
+            shoppingDiv.innerHTML = list.map(item => `
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-primary); cursor: pointer; padding: 6px; border-radius: 4px;" class="shopping-item-label">
+                    <input type="checkbox" style="accent-color: #10b981; cursor: pointer;">
+                    <span>${item.item}: <strong style="color: #10b981;">${Math.round(item.amount_g)}g</strong></span>
+                </label>
+            `).join('');
         }
     }
 
@@ -2414,6 +2584,219 @@ document.addEventListener('DOMContentLoaded', () => {
                 btnGenerateMealPlan.disabled = false;
                 btnGenerateMealPlan.textContent = 'Generate';
             });
+        });
+    }
+
+    // Setup workflow step row clickable navigation
+    document.querySelectorAll('.setup-step-row [data-step]').forEach(stepSpan => {
+        stepSpan.addEventListener('click', () => {
+            const step = stepSpan.dataset.step;
+            if (step === 'profile') {
+                const setupTab = document.getElementById('tab-calculator');
+                if (setupTab) setupTab.click();
+                const target = document.getElementById('settings-avatar-badge') || document.querySelector('.profile-settings-avatar-card') || document.querySelector('.input-panel');
+                if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else if (step === 'targets') {
+                const setupTab = document.getElementById('tab-calculator');
+                if (setupTab) setupTab.click();
+                const target = document.getElementById('calorie-calculator-form') || document.getElementById('output-section');
+                if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else if (step === 'plan') {
+                if (window.bootstrapSession && window.bootstrapSession.isLoggedIn) {
+                    const dashboardTab = document.getElementById('tab-dashboard');
+                    if (dashboardTab) dashboardTab.click();
+                    setTimeout(() => {
+                        const target = document.querySelector('.meal-plan-card');
+                        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 150);
+                } else {
+                    openAuthModal();
+                    alert("Please sign in or register to generate your personalized weekly meal plans.");
+                }
+            } else if (step === 'track') {
+                if (window.bootstrapSession && window.bootstrapSession.isLoggedIn) {
+                    const dashboardTab = document.getElementById('tab-dashboard');
+                    if (dashboardTab) dashboardTab.click();
+                } else {
+                    openAuthModal();
+                    alert("Please sign in or register to unlock daily food, hydration, and weight trackers.");
+                }
+            }
+        });
+    });
+
+    // Diet Plan View and Export handlers
+    const btnViewFullMealPlan = document.getElementById('btn-view-full-meal-plan');
+    const mealPlanModal = document.getElementById('meal-plan-modal');
+    const btnCloseMealPlan = document.getElementById('btn-close-meal-plan');
+    const btnPrintMealPlan = document.getElementById('btn-print-meal-plan');
+    const btnExportTxt = document.getElementById('btn-export-txt-meal-plan');
+
+    if (btnViewFullMealPlan && mealPlanModal) {
+        btnViewFullMealPlan.addEventListener('click', () => {
+            mealPlanModal.classList.remove('hidden');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        });
+    }
+
+    if (btnCloseMealPlan && mealPlanModal) {
+        btnCloseMealPlan.addEventListener('click', () => {
+            mealPlanModal.classList.add('hidden');
+        });
+        mealPlanModal.addEventListener('click', (e) => {
+            if (e.target === mealPlanModal) {
+                mealPlanModal.classList.add('hidden');
+            }
+        });
+    }
+
+    if (btnPrintMealPlan) {
+        btnPrintMealPlan.addEventListener('click', () => {
+            if (!currentDashboardData || !currentDashboardData.meal_plan) return;
+            const mealPlan = currentDashboardData.meal_plan;
+            const days = mealPlan.plan.days;
+            const targetCal = days[0]?.meals.reduce((sum, m) => sum + m.calories, 0) || 2000;
+            const targetProtein = days[0]?.meals.reduce((sum, m) => sum + m.protein, 0) || 120;
+            const targetCarbs = days[0]?.meals.reduce((sum, m) => sum + m.carbs, 0) || 200;
+            const targetFat = days[0]?.meals.reduce((sum, m) => sum + m.fat, 0) || 60;
+            
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+<html>
+<head>
+    <title>NutriQuant Weekly Diet Plan</title>
+    <style>
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #1e293b; padding: 30px; line-height: 1.5; background: #fff; }
+        .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 25px; }
+        h1 { color: #0f172a; margin: 0; font-size: 1.8rem; }
+        .subtitle { color: #64748b; font-size: 0.95rem; margin-top: 5px; }
+        .targets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 30px; }
+        .target-col { text-align: center; }
+        .target-col span { font-size: 0.75rem; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; }
+        .target-col strong { display: block; font-size: 1.3rem; color: #0f172a; margin-top: 4px; }
+        .days-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; page-break-inside: auto; }
+        .day-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; page-break-inside: avoid; background: #fff; }
+        .day-card h3 { margin: 0 0 12px 0; color: #0f172a; font-size: 1.1rem; border-bottom: 2px solid #f1f5f9; padding-bottom: 6px; }
+        .meal-item { margin: 10px 0; font-size: 0.88rem; }
+        .meal-name { font-weight: 600; color: #0f766e; text-transform: uppercase; font-size: 0.75rem; display: block; letter-spacing: 0.5px; }
+        .meal-food { color: #334155; font-weight: 500; }
+        .meal-macros { font-size: 0.8rem; color: #64748b; display: block; margin-top: 2px; }
+        .shopping-list { margin-top: 40px; page-break-before: always; }
+        .shopping-list h2 { font-size: 1.4rem; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 15px; }
+        .shopping-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .shopping-item { padding: 8px; border-bottom: 1px solid #f1f5f9; font-size: 0.88rem; color: #334155; }
+        @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>NutriQuant Weekly Diet Plan</h1>
+        <div class="subtitle">Custom meal plan starting week of ${mealPlan.week_start}</div>
+    </div>
+    
+    <div class="targets">
+        <div class="target-col"><span>Daily Calories</span><strong>${targetCal} kcal</strong></div>
+        <div class="target-col"><span>Daily Protein</span><strong>${targetProtein}g</strong></div>
+        <div class="target-col"><span>Daily Carbs</span><strong>${targetCarbs}g</strong></div>
+        <div class="target-col"><span>Daily Fats</span><strong>${targetFat}g</strong></div>
+    </div>
+    
+    <div class="days-grid">
+        ${days.map(day => {
+            const dateParts = day.date.split('-');
+            const dateObj = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
+            const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+            const displayDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            return `
+                <div class="day-card">
+                    <h3>${dayName} (${displayDate})</h3>
+                    ${day.meals.map(meal => `
+                        <div class="meal-item">
+                            <span class="meal-name">${meal.name}</span>
+                            <span class="meal-food">${meal.food} (${meal.amount_g}g)</span>
+                            <span class="meal-macros">${meal.calories} kcal • P: ${meal.protein}g C: ${meal.carbs}g F: ${meal.fat}g</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }).join('')}
+    </div>
+    
+    <div class="shopping-list">
+        <h2>Grocery Shopping List</h2>
+        <div class="shopping-grid">
+            ${(mealPlan.shopping || mealPlan.shopping_list || []).map(item => `
+                <div class="shopping-item">${item.item}: <strong>${Math.round(item.amount_g)}g</strong></div>
+            `).join('')}
+        </div>
+    </div>
+    
+    <script>
+        window.onload = function() {
+            window.print();
+            window.onafterprint = function() { window.close(); };
+        };
+    </script>
+</body>
+</html>
+            `);
+            printWindow.document.close();
+        });
+    }
+
+    if (btnExportTxt) {
+        btnExportTxt.addEventListener('click', () => {
+            if (!currentDashboardData || !currentDashboardData.meal_plan) return;
+            const mealPlan = currentDashboardData.meal_plan;
+            const days = mealPlan.plan.days;
+            const targetCal = days[0]?.meals.reduce((sum, m) => sum + m.calories, 0) || 2000;
+            const targetProtein = days[0]?.meals.reduce((sum, m) => sum + m.protein, 0) || 120;
+            const targetCarbs = days[0]?.meals.reduce((sum, m) => sum + m.carbs, 0) || 200;
+            const targetFat = days[0]?.meals.reduce((sum, m) => sum + m.fat, 0) || 60;
+            
+            let text = `==================================================\n`;
+            text += `            NUTRIQUANT WEEKLY DIET PLAN\n`;
+            text += `==================================================\n`;
+            text += `Week Starting: ${mealPlan.week_start}\n`;
+            text += `Daily Target Summary:\n`;
+            text += `  Calories      : ${targetCal} kcal\n`;
+            text += `  Protein       : ${targetProtein}g\n`;
+            text += `  Carbohydrates : ${targetCarbs}g\n`;
+            text += `  Fats          : ${targetFat}g\n`;
+            text += `--------------------------------------------------\n\n`;
+            
+            days.forEach(day => {
+                const dateParts = day.date.split('-');
+                const dateObj = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
+                const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+                const displayDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                text += `### ${dayName} (${displayDate}) ###\n`;
+                day.meals.forEach(meal => {
+                    text += `  * ${meal.name}: ${meal.food}\n`;
+                    text += `    Portion: ${meal.amount_g}g | Calories: ${meal.calories} kcal\n`;
+                    text += `    Macros: Protein ${meal.protein}g, Carbs ${meal.carbs}g, Fat ${meal.fat}g\n`;
+                });
+                text += `  * Swap note: Swap with a similar calorie food from your database.\n\n`;
+            });
+            
+            text += `==================================================\n`;
+            text += `            GROCERY SHOPPING LIST\n`;
+            text += `==================================================\n`;
+            const list = mealPlan.shopping || mealPlan.shopping_list || [];
+            list.forEach(item => {
+                text += `[ ] ${item.item}: ${Math.round(item.amount_g)}g\n`;
+            });
+            
+            text += `\nGenerated by NutriQuant. Stay on track!`;
+            
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `NutriQuant_Diet_Plan_${mealPlan.week_start}.txt`;
+            link.click();
         });
     }
 
@@ -3003,7 +3386,28 @@ document.addEventListener('DOMContentLoaded', () => {
             swimming: 7.0,
             walking: 3.5,
             weightlifting: 3.0,
-            yoga: 2.5
+            yoga: 2.5,
+            hiit: 10.0,
+            rope_jumping: 11.0,
+            hiking: 6.0,
+            rowing: 7.0,
+            elliptical: 5.0,
+            pilates: 3.0,
+            dancing: 4.5,
+            soccer: 7.0,
+            basketball: 6.0,
+            tennis: 7.0,
+            crossfit: 8.0,
+            boxing: 9.0,
+            martial_arts: 10.0,
+            badminton: 5.5,
+            golf: 4.5,
+            table_tennis: 4.0,
+            volleyball: 4.0,
+            cricket: 5.0,
+            rock_climbing: 8.0,
+            calisthenics: 6.0,
+            stair_climber: 9.0
         };
         const met = mets[val] || 3.0;
         const weight = currentUserWeight || 70.0;

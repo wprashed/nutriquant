@@ -462,16 +462,35 @@ def logout():
     session.clear()
     return jsonify({"success": True})
 
-@app.route('/api/profile', methods=['GET'])
-def get_profile():
+@app.route('/api/profile', methods=['GET', 'POST'])
+def profile():
     if 'user_id' not in session:
         return jsonify({"error": "Unauthorized"}), 401
     
-    user = db.get_user_by_id(session['user_id'])
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-
-    return jsonify({"user": public_user_payload(user)})
+    user_id = session['user_id']
+    if request.method == 'GET':
+        user = db.get_user_by_id(user_id)
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+        return jsonify({"user": public_user_payload(user)})
+        
+    try:
+        data = request.get_json() or {}
+        full_name = data.get('full_name', '').strip()
+        email = data.get('email', '').strip()
+        password = data.get('password', '')
+        
+        if email and ('@' not in email or '.' not in email):
+            return jsonify({"error": "Please provide a valid email address."}), 400
+        if password and len(password) < 6:
+            return jsonify({"error": "Password must be at least 6 characters long."}), 400
+            
+        db.update_account_settings(user_id, full_name, email, password if password else None)
+        
+        user = db.get_user_by_id(user_id)
+        return jsonify({"success": True, "user": public_user_payload(user)})
+    except Exception as e:
+        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
 # -------------------------------------------------------------
 # Weight Logging API

@@ -103,9 +103,9 @@ class NutriQuantTestCase(unittest.TestCase):
         self.assertEqual(data['water_ml'], 750)
 
     def test_food_database_size(self):
-        # Predefined food seeding should ensure at least 1000 foods
+        # Predefined food seeding should ensure at least 6000 foods
         foods = db.get_all_foods()
-        self.assertGreaterEqual(len(foods), 1000)
+        self.assertGreaterEqual(len(foods), 6000)
 
     def test_subscription_system_removed_from_public_api(self):
         self.register_user('client_without_subscription', 'pass123')
@@ -421,6 +421,34 @@ class NutriQuantTestCase(unittest.TestCase):
         report = json.loads(res.data)['report']
         self.assertEqual(report['client']['username'], 'coached_client')
         self.assertIn('target_history', report)
+
+    def test_profile_update(self):
+        self.register_user('profile_updater', 'pass123')
+        self.login_user('profile_updater', 'pass123')
+
+        res = self.client.post('/api/profile', json={
+            'full_name': 'John Doe',
+            'email': 'john@example.com',
+            'password': ''
+        })
+        self.assertEqual(res.status_code, 200)
+        data = json.loads(res.data)
+        self.assertEqual(data['user']['full_name'], 'John Doe')
+        self.assertEqual(data['user']['email'], 'john@example.com')
+
+        res = self.client.post('/api/profile', json={
+            'full_name': 'John Doe',
+            'email': 'john@example.com',
+            'password': 'newpassword123'
+        })
+        self.assertEqual(res.status_code, 200)
+
+        self.client.post('/api/auth/logout')
+        res = self.client.post('/api/auth/login', json={
+            'username': 'profile_updater',
+            'password': 'newpassword123'
+        })
+        self.assertEqual(res.status_code, 200)
 
 if __name__ == '__main__':
     unittest.main()

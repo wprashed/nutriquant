@@ -141,7 +141,7 @@
                 <!-- Left Column: Energy Balance & Targets -->
                 <div class="dashboard-main-col">
                     <div class="metrics-summary-card panel-card">
-                        <h3>Today's Energy Balance</h3>
+                        <h3 style="display: flex; align-items: center; gap: 8px;"><i data-lucide="flame" style="width: 18px; height: 18px; color: #ec4899;"></i>Today's Energy Balance</h3>
                         <div class="energy-balance-row">
                             <!-- Concentric Activity Rings Gauge -->
                             <div class="calorie-progress-gauge">
@@ -353,6 +353,27 @@
                                         <option value="walking">Brisk Walking (3.5 METs)</option>
                                         <option value="weightlifting">Weight Lifting (3.0 METs)</option>
                                         <option value="yoga">Yoga (2.5 METs)</option>
+                                        <option value="hiit">HIIT Workout (10.0 METs)</option>
+                                        <option value="rope_jumping">Rope Jumping (11.0 METs)</option>
+                                        <option value="hiking">Hiking (6.0 METs)</option>
+                                        <option value="rowing">Rowing Machine (7.0 METs)</option>
+                                        <option value="elliptical">Elliptical Trainer (5.0 METs)</option>
+                                        <option value="pilates">Pilates (3.0 METs)</option>
+                                        <option value="dancing">Dancing / Zumba (4.5 METs)</option>
+                                        <option value="soccer">Soccer / Football (7.0 METs)</option>
+                                        <option value="basketball">Basketball (6.0 METs)</option>
+                                        <option value="tennis">Tennis (7.0 METs)</option>
+                                        <option value="crossfit">CrossFit (8.0 METs)</option>
+                                        <option value="boxing">Boxing (9.0 METs)</option>
+                                        <option value="martial_arts">Martial Arts (10.0 METs)</option>
+                                        <option value="badminton">Badminton (5.5 METs)</option>
+                                        <option value="golf">Golf (4.5 METs)</option>
+                                        <option value="table_tennis">Table Tennis (4.0 METs)</option>
+                                        <option value="volleyball">Volleyball (4.0 METs)</option>
+                                        <option value="cricket">Cricket (5.0 METs)</option>
+                                        <option value="rock_climbing">Rock Climbing (8.0 METs)</option>
+                                        <option value="calisthenics">Calisthenics (6.0 METs)</option>
+                                        <option value="stair_climber">Stair Climber (9.0 METs)</option>
                                         <option value="custom">Custom Activity (Manual Calories)</option>
                                     </select>
                                 </div>
@@ -454,7 +475,7 @@
                     <!-- Daily Checklist -->
                     <div class="panel-card checklist-card">
                         <div class="checklist-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                            <h3>Daily Achievements</h3>
+                            <h3 style="display: flex; align-items: center; gap: 8px;"><i data-lucide="award" style="width: 18px; height: 18px; color: #10b981;"></i>Daily Achievements</h3>
                             <span class="achievement-progress-badge" id="checklist-progress-badge">0/4 Done</span>
                         </div>
                         <div class="checklist-items" id="user-dashboard-checklist">
@@ -486,7 +507,7 @@
                     
                     <!-- Coach's Announcements/Direct Notes -->
                     <div class="panel-card coaching-notes-card">
-                        <h3>Coach's Board & Notes</h3>
+                        <h3 style="display: flex; align-items: center; gap: 8px;"><i data-lucide="sticky-note" style="width: 18px; height: 18px; color: #3b82f6;"></i>Coach's Board & Notes</h3>
                         <div class="coaching-inbox" id="user-coaching-notes-list">
                             <div class="empty-inbox-text">No notes or announcements from your coach.</div>
                         </div>
@@ -494,7 +515,7 @@
                     
                     <!-- Weight Goal Progress -->
                     <div class="panel-card target-weight-card">
-                        <h3>Goal Progress</h3>
+                        <h3 style="display: flex; align-items: center; gap: 8px;"><i data-lucide="target" style="width: 18px; height: 18px; color: #f59e0b;"></i>Goal Progress</h3>
                         <div class="weight-progress-bar-container">
                             <div class="progress-bar-labels">
                                 <span id="dash-weight-start">-- kg</span>
@@ -509,15 +530,15 @@
                             <!-- Weight Goal Forecast Projection -->
                             <div id="user-dashboard-weight-projection" class="projection-box hidden" style="margin-top: 16px; padding: 12px; border-radius: var(--radius-md); background: rgba(6, 182, 212, 0.05); border: 1px dashed rgba(6, 182, 212, 0.2); text-align: center;">
                                 <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; font-weight: 600;">Projected Goal Achievement</span>
-                                <strong id="val-projected-date" style="font-family: var(--font-heading); font-size: 1.1rem; color: var(--secondary-light);">September 24, 2026</strong>
-                                <span id="val-projected-days-left" style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 2px;">(76 days remaining at current rate)</span>
+                                <strong id="val-projected-date" style="font-family: var(--font-heading); font-size: 1.1rem; color: var(--secondary-light);">--</strong>
+                                <span id="val-projected-days-left" style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 2px;">(Recalculate or log weight to forecast)</span>
                             </div>
                         </div>
                     </div>
 
                     <div class="panel-card intelligence-card">
                         <div class="card-header-row">
-                            <h3>Progress Intelligence</h3>
+                            <h3 style="display: flex; align-items: center; gap: 8px;"><i data-lucide="brain" style="width: 18px; height: 18px; color: #a855f7;"></i>Progress Intelligence</h3>
                             <span class="score-pill" id="adherence-score-pill">0</span>
                         </div>
                         <div class="insight-grid">
@@ -530,17 +551,21 @@
 
                     <div class="panel-card meal-plan-card">
                         <div class="card-header-row">
-                            <h3>Weekly Meal Plan</h3>
+                            <h3 style="display: flex; align-items: center; gap: 8px;"><i data-lucide="utensils" style="width: 18px; height: 18px; color: #14b8a6;"></i>Weekly Meal Plan</h3>
                             <button type="button" class="btn-mini-action" id="btn-generate-meal-plan">Generate</button>
                         </div>
                         <div id="meal-plan-preview" class="meal-plan-preview">
                             <p class="empty-inbox-text">Generate a macro-aware weekly plan and shopping list from your current targets.</p>
                         </div>
                         <div class="shopping-list-preview" id="shopping-list-preview"></div>
+                        <button type="button" class="btn-secondary-action hidden" id="btn-view-full-meal-plan" style="width: 100%; margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <i data-lucide="eye"></i>
+                            <span>View & Download Full Plan</span>
+                        </button>
                     </div>
 
                     <div class="panel-card checkin-card">
-                        <h3>Coach Check-In</h3>
+                        <h3 style="display: flex; align-items: center; gap: 8px;"><i data-lucide="message-square" style="width: 18px; height: 18px; color: #6366f1;"></i>Coach Check-In</h3>
                         <form id="client-checkin-form" class="mini-form-grid">
                             <input type="number" id="checkin-mood" min="1" max="5" value="3" class="number-input-small" title="Mood 1-5">
                             <input type="number" id="checkin-energy" min="1" max="5" value="3" class="number-input-small" title="Energy 1-5">
@@ -563,10 +588,10 @@
                     <p>Only the setup tools are shown here. Client tracking moves to Dashboard and Progress after sign in.</p>
                 </div>
                 <div class="setup-step-row" aria-label="Client setup steps">
-                    <span class="active"><i data-lucide="user-round-check"></i> Profile</span>
-                    <span><i data-lucide="calculator"></i> Targets</span>
-                    <span><i data-lucide="utensils"></i> Plan</span>
-                    <span><i data-lucide="chart-no-axes-combined"></i> Track</span>
+                    <span class="active" data-step="profile"><i data-lucide="user-round-check"></i> Profile</span>
+                    <span data-step="targets"><i data-lucide="calculator"></i> Targets</span>
+                    <span data-step="plan"><i data-lucide="utensils"></i> Plan</span>
+                    <span data-step="track"><i data-lucide="chart-no-axes-combined"></i> Track</span>
                 </div>
             </section>
             <div class="grid-layout">
@@ -586,6 +611,31 @@
                             <span class="badge badge-premium">Managed Client</span>
                         </div>
                     </div>
+
+                    <!-- Account Settings Form (Only shown when logged in) -->
+                    <form id="account-settings-form" class="onboarding-card hidden" style="margin-bottom: 16px; width: 100%;">
+                        <div class="card-header-row">
+                            <h3>Account Credentials</h3>
+                            <span class="tier-badge tier-premium">Profile</span>
+                        </div>
+                        <div class="form-group-small" style="margin-top: 10px;">
+                            <label for="account-fullname">Full Name</label>
+                            <input type="text" id="account-fullname" class="styled-input-text" placeholder="e.g. John Doe">
+                        </div>
+                        <div class="form-group-small" style="margin-top: 10px;">
+                            <label for="account-email">Email Address</label>
+                            <input type="email" id="account-email" class="styled-input-text" placeholder="e.g. john@example.com">
+                        </div>
+                        <div class="form-group-small" style="margin-top: 10px;">
+                            <label for="account-password">New Password (leave blank to keep current)</label>
+                            <input type="password" id="account-password" class="styled-input-text" placeholder="••••••••">
+                        </div>
+                        <button type="submit" class="btn-secondary-action account-save-btn" style="margin-top: 12px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <i data-lucide="save"></i>
+                            <span>Save Account Details</span>
+                        </button>
+                        <div id="account-settings-status" class="status-banner hidden" style="margin-top: 8px; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem;"></div>
+                    </form>
 
                     <form id="onboarding-form" class="onboarding-card">
                         <div class="card-header-row">
@@ -1659,6 +1709,60 @@
         <button type="button" class="fab-trigger" id="fab-trigger" title="Quick Action Menu">
             <i data-lucide="plus"></i>
         </button>
+    </div>
+
+    <!-- Meal Plan Full View Modal -->
+    <div class="modal-overlay hidden" id="meal-plan-modal">
+        <div class="modal-card" style="max-width: 850px; width: 90%; padding: 32px; max-height: 90vh; overflow-y: auto;">
+            <button class="modal-close-btn" id="btn-close-meal-plan">
+                <i data-lucide="x"></i>
+            </button>
+            <div class="modal-header-section" style="margin-bottom: 24px;">
+                <h2 style="display: flex; align-items: center; gap: 10px; font-family: var(--font-heading); color: var(--text-primary); font-size: 1.5rem;">
+                    <i data-lucide="utensils" style="color: #14b8a6; width: 24px; height: 24px;"></i>
+                    <span>Weekly Diet & Meal Plan</span>
+                </h2>
+                <p style="color: var(--text-secondary); margin-top: 4px; font-size: 0.9rem;">Your custom generated nutrition plan with target calories, macronutrients, and grocery shopping list.</p>
+            </div>
+            
+            <!-- Modal Body -->
+            <div id="meal-plan-modal-body">
+                <!-- Calculated target summary pill/cards -->
+                <div id="meal-plan-modal-targets" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px;">
+                    <!-- Filled dynamically -->
+                </div>
+                
+                <!-- 7-Day Schedule -->
+                <h3 style="font-family: var(--font-heading); color: var(--text-primary); font-size: 1.1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                    <i data-lucide="calendar" style="width: 18px; height: 18px; color: #3b82f6;"></i>
+                    <span>7-Day Schedule</span>
+                </h3>
+                <div id="meal-plan-modal-schedule" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                    <!-- Filled dynamically -->
+                </div>
+                
+                <!-- Shopping List -->
+                <h3 style="font-family: var(--font-heading); color: var(--text-primary); font-size: 1.1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                    <i data-lucide="shopping-basket" style="width: 18px; height: 18px; color: #10b981;"></i>
+                    <span>Grocery Shopping List</span>
+                </h3>
+                <div id="meal-plan-modal-shopping" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; padding: 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-md); max-height: 200px; overflow-y: auto;">
+                    <!-- Filled dynamically -->
+                </div>
+            </div>
+            
+            <!-- Modal Actions Footer -->
+            <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.08); display: flex; justify-content: flex-end; gap: 12px;">
+                <button type="button" class="btn-secondary-action" id="btn-export-txt-meal-plan" style="display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="file-text"></i>
+                    <span>Download TXT</span>
+                </button>
+                <button type="button" class="btn-submit" id="btn-print-meal-plan" style="display: flex; align-items: center; gap: 8px; background: #10b981 !important; border-color: #10b981 !important;">
+                    <i data-lucide="printer"></i>
+                    <span>Print / PDF</span>
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Bootstrap Session Script -->
