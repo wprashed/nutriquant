@@ -625,6 +625,18 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             document.getElementById('goal-select').value = user.goal;
+
+            const subscriptionTier = user.subscription_tier || 'free';
+            const tierSelectEl = document.getElementById('user-subscription-tier');
+            const tierBadgeEl = document.getElementById('user-current-tier-badge');
+            if (tierSelectEl) {
+                tierSelectEl.value = subscriptionTier;
+            }
+            if (tierBadgeEl) {
+                tierBadgeEl.textContent = subscriptionTier;
+                tierBadgeEl.className = `tier-badge tier-${subscriptionTier}`;
+            }
+
             updateUnitSystem();
 
             // Run calculation immediately
@@ -779,34 +791,66 @@ document.addEventListener('DOMContentLoaded', () => {
             outputSection.scrollIntoView({ behavior: 'smooth' });
         }
 
-        fetch('/api/calculate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                age: age,
-                height_cm: heightCm,
-                weight_kg: weightKg,
-                gender: gender,
-                activity: activity,
-                goal: goal
+        const tierSelectEl = document.getElementById('user-subscription-tier');
+        const subscriptionTier = tierSelectEl ? tierSelectEl.value : 'free';
+
+        const doCalculate = () => {
+            fetch('/api/calculate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    age: age,
+                    height_cm: heightCm,
+                    weight_kg: weightKg,
+                    gender: gender,
+                    activity: activity,
+                    goal: goal
+                })
             })
-        })
-        .then(response => {
-            if (!response.ok) {
-                return response.json().then(err => { throw new Error(err.error || "Calculation failed") });
-            }
-            return response.json();
-        })
-        .then(data => {
-            loadingView.classList.add('hidden');
-            dashboardView.classList.remove('hidden');
-            renderDashboard(data);
-        })
-        .catch(err => {
-            loadingView.classList.add('hidden');
-            emptyStateView.classList.remove('hidden');
-            alert(err.message || "An error occurred during calculation.");
-        });
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw new Error(err.error || "Calculation failed") });
+                }
+                return response.json();
+            })
+            .then(data => {
+                loadingView.classList.add('hidden');
+                dashboardView.classList.remove('hidden');
+                renderDashboard(data);
+                
+                const tierBadgeEl = document.getElementById('user-current-tier-badge');
+                if (tierBadgeEl) {
+                    tierBadgeEl.textContent = subscriptionTier;
+                    tierBadgeEl.className = `tier-badge tier-${subscriptionTier}`;
+                }
+            })
+            .catch(err => {
+                loadingView.classList.add('hidden');
+                emptyStateView.classList.remove('hidden');
+                alert(err.message || "An error occurred during calculation.");
+            });
+        };
+
+        if (session.isLoggedIn && !session.isAdmin) {
+            fetch('/api/user/subscription', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ subscription_tier: subscriptionTier })
+            })
+            .then(res => {
+                if (!res.ok) throw new Error("Could not update subscription plan");
+                return res.json();
+            })
+            .then(() => {
+                doCalculate();
+            })
+            .catch(err => {
+                console.log(err.message);
+                doCalculate();
+            });
+        } else {
+            doCalculate();
+        }
     });
 
     function renderDashboard(data) {

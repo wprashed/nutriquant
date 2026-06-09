@@ -472,6 +472,19 @@
                                 <option value="gain">Weight Gain / Muscle Build (+500 kcal)</option>
                             </select>
                         </div>
+                        
+                        <!-- Subscription Tier Selection -->
+                        <div class="form-group" id="subscription-tier-group" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 20px; margin-top: 20px; margin-bottom: 24px;">
+                            <label for="user-subscription-tier">Subscription Plan Tier</label>
+                            <div style="display: flex; gap: 12px; align-items: center; width: 100%;">
+                                <select id="user-subscription-tier" name="subscription_tier" class="styled-select" style="flex: 1; height: 38px;">
+                                    <option value="free">Free Plan ($0/mo)</option>
+                                    <option value="premium">Premium Plan ($29/mo)</option>
+                                    <option value="enterprise">Enterprise Plan ($99/mo)</option>
+                                </select>
+                                <span class="tier-badge tier-free" id="user-current-tier-badge" style="height: 38px; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; padding: 0 16px; border-radius: 8px; text-transform: uppercase;">free</span>
+                            </div>
+                        </div>
 
                         <button type="submit" class="btn-submit" id="btn-submit">
                             <span>Save Settings & Update Targets</span>

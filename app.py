@@ -212,6 +212,23 @@ def get_profile():
     user['custom_fat'] = user.get('custom_fat')
     return jsonify({"user": user})
 
+@app.route('/api/user/subscription', methods=['POST'])
+def update_my_subscription():
+    if 'user_id' not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        data = request.get_json() or {}
+        tier = data.get('subscription_tier', data.get('tier', 'free')).strip().lower()
+        if tier not in ['free', 'premium', 'enterprise']:
+            return jsonify({"error": "Invalid subscription tier."}), 400
+            
+        success = db.update_user_subscription(session['user_id'], tier)
+        if success:
+            return jsonify({"success": True, "subscription_tier": tier})
+        return jsonify({"error": "Failed to update subscription."}), 400
+    except Exception as e:
+        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+
 # -------------------------------------------------------------
 # Weight Logging API
 # -------------------------------------------------------------
