@@ -14,51 +14,6 @@ app.config.update(
     SESSION_COOKIE_SECURE=os.environ.get('NUTRIQUANT_COOKIE_SECURE', '').lower() == 'true'
 )
 
-PLAN_FEATURES = {
-    "free": {
-        "label": "Free",
-        "price": 0,
-        "features": [
-            "Nutrition calculator",
-            "Daily calorie and macro targets",
-            "Basic weight tracking"
-        ],
-        "limits": {
-            "coach_messaging": False,
-            "custom_targets": False,
-            "team_console": False
-        }
-    },
-    "premium": {
-        "label": "Premium",
-        "price": 29,
-        "features": [
-            "Daily food, water, and exercise logs",
-            "Coach notes and custom target overrides",
-            "Progress dashboards"
-        ],
-        "limits": {
-            "coach_messaging": True,
-            "custom_targets": True,
-            "team_console": False
-        }
-    },
-    "enterprise": {
-        "label": "Enterprise",
-        "price": 99,
-        "features": [
-            "Coach/admin client console",
-            "Subscription and audit analytics",
-            "Managed food database"
-        ],
-        "limits": {
-            "coach_messaging": True,
-            "custom_targets": True,
-            "team_console": True
-        }
-    }
-}
-
 # Initialise database on startup
 db.init_db()
 
@@ -77,15 +32,11 @@ def admin_required(f):
     return decorated_function
 
 def public_user_payload(user):
-    """Return non-sensitive user data with plan metadata for the client UI."""
+    """Return non-sensitive user data for the client UI."""
     payload = dict(user)
     payload.pop('password_hash', None)
     payload['is_admin'] = bool(payload.get('is_admin', 0))
-    tier = (payload.get('subscription_tier') or 'free').lower()
-    if tier not in PLAN_FEATURES:
-        tier = 'free'
-    payload['subscription_tier'] = tier
-    payload['plan'] = PLAN_FEATURES[tier]
+    payload.pop('subscription_tier', None)
     for key in ['allergies', 'client_tags']:
         value = payload.get(key)
         if isinstance(value, str):
@@ -521,31 +472,6 @@ def get_profile():
         return jsonify({"error": "User not found"}), 404
 
     return jsonify({"user": public_user_payload(user)})
-
-@app.route('/api/user/subscription', methods=['GET', 'POST'])
-def get_my_subscription():
-    if 'user_id' not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-    try:
-        user = db.get_user_by_id(session['user_id'])
-        if not user:
-            return jsonify({"error": "User not found"}), 404
-
-        payload = public_user_payload(user)
-        if request.method == 'POST':
-            return jsonify({
-                "error": "Subscription upgrades are managed by an administrator or billing integration.",
-                "subscription_tier": payload['subscription_tier'],
-                "plan": payload['plan']
-            }), 403
-
-        return jsonify({
-            "success": True,
-            "subscription_tier": payload['subscription_tier'],
-            "plan": payload['plan']
-        })
-    except Exception as e:
-        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
 # -------------------------------------------------------------
 # Weight Logging API
@@ -1145,25 +1071,6 @@ def admin_audit_logs():
     try:
         logs = db.get_admin_audit_logs(limit=50)
         return jsonify({"success": True, "logs": logs})
-    except Exception as e:
-        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
-
-@app.route('/api/admin/users/<int:user_id>/tier', methods=['POST'])
-@admin_required
-def admin_update_subscription(user_id):
-    try:
-        data = request.get_json() or {}
-        tier = data.get('subscription_tier', data.get('tier', 'free')).strip().lower()
-        if tier not in ['free', 'premium', 'enterprise']:
-            return jsonify({"error": "Invalid subscription tier."}), 400
-            
-        success = db.update_user_subscription(user_id, tier)
-        if success:
-            user = db.get_user_by_id(user_id)
-            username = user['username'] if user else f"User ID {user_id}"
-            db.log_admin_action(session['user_id'], 'update_subscription', username, f"Changed subscription plan for {username} to {tier.capitalize()}")
-            return jsonify({"success": True})
-        return jsonify({"error": "Failed to update user subscription plan."}), 400
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 

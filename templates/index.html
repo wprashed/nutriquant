@@ -14,7 +14,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
-<body>
+<body class="{% if user and user.is_admin %}is-admin{% elif user %}is-client{% else %}is-guest{% endif %}">
     <div class="background-decorations">
         <div class="glow-orb orb-1"></div>
         <div class="glow-orb orb-2"></div>
@@ -36,15 +36,15 @@
                 </button>
                 <button class="nav-tab active" id="tab-calculator" data-tab="calculator">
                     <i data-lucide="user-cog"></i>
-                    <span>Profile Settings</span>
+                    <span>Setup</span>
                 </button>
                 <button class="nav-tab hidden" id="tab-history" data-tab="history">
                     <i data-lucide="line-chart"></i>
-                    <span>Weight Tracker</span>
+                    <span>Progress</span>
                 </button>
                 <button class="nav-tab hidden" id="tab-admin" data-tab="admin">
                     <i data-lucide="shield"></i>
-                    <span>Admin Console</span>
+                    <span>Coach Portal</span>
                 </button>
             </div>
             
@@ -64,12 +64,78 @@
     </nav>
 
     <main class="app-container">
+        <section class="modern-app-intro role-guest-only" aria-label="NutriQuant workspace overview">
+            <div class="intro-copy">
+                <span class="section-kicker">NutriQuant</span>
+                <h1>Set accurate nutrition targets and turn them into a daily plan.</h1>
+                <p>Start with your body metrics, dietary preferences, and goal. After sign in, the app opens the right workspace for your role.</p>
+            </div>
+            <div class="intro-actions">
+                <button type="button" class="btn-secondary-action" data-tab="calculator">
+                    <i data-lucide="clipboard-check"></i>
+                    <span>Start Setup</span>
+                </button>
+                <button type="button" class="btn-submit" id="btn-intro-signin">
+                    <span>Sign In</span>
+                    <i data-lucide="log-in"></i>
+                </button>
+            </div>
+            <div class="intro-feature-grid">
+                <article class="intro-feature-card">
+                    <i data-lucide="route"></i>
+                    <span>Setup</span>
+                    <strong>Profile, goal, diet style, cuisine, and allergies</strong>
+                </article>
+                <article class="intro-feature-card">
+                    <i data-lucide="calendar-days"></i>
+                    <span>Plan</span>
+                    <strong>Calorie, macro, hydration, and weekly meal targets</strong>
+                </article>
+                <article class="intro-feature-card">
+                    <i data-lucide="line-chart"></i>
+                    <span>Review</span>
+                    <strong>Daily logs, progress trend, check-ins, and coach notes</strong>
+                </article>
+            </div>
+        </section>
+
         <!-- Tab Content: User Dashboard (Default for logged-in standard users) -->
         <div class="tab-content-panel hidden" id="panel-dashboard">
-            <div class="dashboard-banner">
-                <h1 id="user-dashboard-greeting">Hello, User!</h1>
-                <p id="user-dashboard-welcome-msg">Let's stay on track with your nutrition and daily activity.</p>
-            </div>
+            <section class="dashboard-hero role-client-only">
+                <div class="dashboard-hero-copy">
+                    <span class="section-kicker">Today</span>
+                    <h1 id="user-dashboard-greeting">Hello, User!</h1>
+                    <p id="user-dashboard-welcome-msg">Let's stay on track with your nutrition and daily activity.</p>
+                </div>
+                <div class="dashboard-hero-actions">
+                    <button type="button" class="btn-submit" data-tab="calculator">
+                        <span>Update Targets</span>
+                        <i data-lucide="sliders-horizontal"></i>
+                    </button>
+                    <button type="button" class="btn-secondary-action" data-tab="history">
+                        <i data-lucide="line-chart"></i>
+                        <span>Log Weight</span>
+                    </button>
+                    <button type="button" class="btn-secondary-action" id="btn-hero-meal-plan">
+                        <i data-lucide="calendar-plus"></i>
+                        <span>Generate Plan</span>
+                    </button>
+                </div>
+                <div class="dashboard-hero-tiles">
+                    <div class="hero-stat-tile">
+                        <span>Remaining</span>
+                        <strong id="hero-cal-remaining">Syncs live</strong>
+                    </div>
+                    <div class="hero-stat-tile">
+                        <span>Adherence</span>
+                        <strong id="hero-adherence-score">Score ready</strong>
+                    </div>
+                    <div class="hero-stat-tile">
+                        <span>Next action</span>
+                        <strong>Log meal</strong>
+                    </div>
+                </div>
+            </section>
             
             <div class="dashboard-grid">
                 <!-- Left Column: Energy Balance & Targets -->
@@ -490,6 +556,19 @@
 
         <!-- Tab Content: Calculator -->
         <div class="tab-content-panel active" id="panel-calculator">
+            <section class="setup-command-strip role-client-and-guest">
+                <div>
+                    <span class="section-kicker">Setup workflow</span>
+                    <h2>Create the profile, calculate targets, then track daily execution.</h2>
+                    <p>Only the setup tools are shown here. Client tracking moves to Dashboard and Progress after sign in.</p>
+                </div>
+                <div class="setup-step-row" aria-label="Client setup steps">
+                    <span class="active"><i data-lucide="user-round-check"></i> Profile</span>
+                    <span><i data-lucide="calculator"></i> Targets</span>
+                    <span><i data-lucide="utensils"></i> Plan</span>
+                    <span><i data-lucide="chart-no-axes-combined"></i> Track</span>
+                </div>
+            </section>
             <div class="grid-layout">
                 <!-- Left Panel: User Input Form -->
                 <section class="panel-card input-panel">
@@ -701,23 +780,18 @@
                             </select>
                         </div>
                         
-                        <!-- Managed Subscription Status -->
-                        <div class="form-group plan-status-card" id="subscription-tier-group">
+                        <!-- Workflow Summary -->
+                        <div class="form-group plan-status-card" id="client-workflow-summary">
                             <div class="plan-status-header">
-                                <label for="user-subscription-tier">Managed Plan Status</label>
-                                <span class="tier-badge tier-free" id="user-current-tier-badge">free</span>
+                                <label>Client Workflow</label>
+                                <span class="tier-badge tier-premium" id="workflow-status-badge">active</span>
                             </div>
-                            <select id="user-subscription-tier" name="subscription_tier" class="styled-select plan-tier-readonly" disabled aria-readonly="true">
-                                    <option value="free">Free Plan ($0/mo)</option>
-                                    <option value="premium">Premium Plan ($29/mo)</option>
-                                    <option value="enterprise">Enterprise Plan ($99/mo)</option>
-                            </select>
                             <ul class="plan-feature-list" id="user-plan-feature-list">
-                                <li>Nutrition calculator</li>
-                                <li>Daily calorie and macro targets</li>
-                                <li>Basic weight tracking</li>
+                                <li>Save profile metrics and onboarding preferences</li>
+                                <li>Generate calorie, macro, hydration, and micronutrient targets</li>
+                                <li>Use dashboard logging, meal planning, progress insights, and coach check-ins</li>
                             </ul>
-                            <p class="plan-manage-hint" id="user-plan-manage-hint">Create an account to save targets and unlock client tracking workflows.</p>
+                            <p class="plan-manage-hint" id="user-plan-manage-hint">Sign in to keep profile history, daily logs, meal plans, and coach messages connected.</p>
                         </div>
 
                         <button type="submit" class="btn-submit" id="btn-submit">
@@ -991,6 +1065,18 @@
 
         <!-- Tab Content: Admin Console (Hidden Initially) -->
         <div class="tab-content-panel hidden" id="panel-admin">
+            <section class="admin-ops-hero role-admin-only">
+                <div>
+                    <span class="section-kicker">Coach portal</span>
+                    <h1>Review clients, adjust targets, and manage operations.</h1>
+                    <p>Admin-only tools are grouped by workflow: analytics, clients, foods, and system logs.</p>
+                </div>
+                <div class="admin-ops-grid">
+                    <div><span>Clients</span><strong>Assign, tag, review</strong></div>
+                    <div><span>Reports</span><strong>Weekly exports</strong></div>
+                    <div><span>Control</span><strong>Targets and audit logs</strong></div>
+                </div>
+            </section>
             <!-- Admin Subtab Selection -->
             <div class="admin-subnav">
                 <button class="admin-subtab active" id="btn-admin-sub-overview" data-subtab="overview">
@@ -1021,9 +1107,14 @@
                         <span class="metric-hint">Standard users</span>
                     </div>
                     <div class="metric-card">
-                        <span class="metric-label">Estimated SaaS MRR</span>
-                        <span class="metric-value" id="admin-val-mrr">$0</span>
-                        <span class="metric-hint" id="admin-val-active-subs">0 active paid plans</span>
+                        <span class="metric-label">Active This Week</span>
+                        <span class="metric-value" id="admin-val-active-week">0</span>
+                        <span class="metric-hint">Clients with nutrition or water logs</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Check-Ins This Week</span>
+                        <span class="metric-value" id="admin-val-checkins-week">0</span>
+                        <span class="metric-hint" id="admin-val-onboarding-complete">0 profiles onboarded</span>
                     </div>
                     <div class="metric-card">
                         <span class="metric-label">Food Database</span>
@@ -1052,9 +1143,9 @@
                         </div>
                     </div>
                     <div class="panel-card chart-kpi-box">
-                        <h3>Subscription Plan splits</h3>
+                        <h3>Client Operations</h3>
                         <div class="admin-chart-canvas-wrapper">
-                            <canvas id="adminTierDistChart"></canvas>
+                            <canvas id="adminOpsChart"></canvas>
                         </div>
                     </div>
                 </div>
@@ -1092,11 +1183,11 @@
                         <!-- Search & Filters -->
                         <div class="directory-filter-row" style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;">
                             <input type="text" id="admin-user-search" placeholder="Search username..." class="styled-input-text filter-search" style="flex: 2; height: 38px; min-width: 150px;">
-                            <select id="admin-user-tier-filter" class="styled-select filter-dropdown" style="flex: 1; height: 38px; min-width: 120px;">
-                                <option value="all">All Plans</option>
-                                <option value="free">Free</option>
-                                <option value="premium">Premium</option>
-                                <option value="enterprise">Enterprise</option>
+                            <select id="admin-user-coach-filter" class="styled-select filter-dropdown" style="flex: 1; height: 38px; min-width: 120px;">
+                                <option value="all">All Coaching</option>
+                                <option value="assigned">Assigned</option>
+                                <option value="unassigned">Unassigned</option>
+                                <option value="onboarded">Onboarded</option>
                             </select>
                             <select id="admin-user-goal-filter" class="styled-select filter-dropdown" style="flex: 1; height: 38px; min-width: 120px;">
                                 <option value="all">All Goals</option>
@@ -1111,7 +1202,7 @@
                                 <thead>
                                     <tr>
                                         <th>Username</th>
-                                        <th>Plan Tier</th>
+                                        <th>Coaching</th>
                                         <th>Gender</th>
                                         <th>Age</th>
                                         <th>Weight</th>
@@ -1143,12 +1234,8 @@
                                     <p class="summary-subtitle" id="admin-display-join-date" style="margin-top: 4px;">Registered: YYYY-MM-DD</p>
                                 </div>
                                 <div class="admin-tier-upgrade-wrapper" style="display: flex; align-items: center; gap: 8px;">
-                                    <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Plan:</span>
-                                    <select id="admin-client-tier-select" class="styled-select tier-select-small" style="height: 32px; padding: 0 8px; font-size: 12px; border-radius: 6px;">
-                                        <option value="free">Free Plan</option>
-                                        <option value="premium">Premium Plan</option>
-                                        <option value="enterprise">Enterprise Plan</option>
-                                    </select>
+                                    <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Status:</span>
+                                    <span class="tier-badge tier-premium" id="admin-client-coaching-status">Unassigned</span>
                                 </div>
                                 <button class="btn-icon btn-danger-action" id="btn-admin-delete-user" title="Delete Client Profile">
                                     <i data-lucide="trash-2"></i>
@@ -1462,6 +1549,10 @@
                 </section>
             </div>
         </div>
+        <footer class="modern-app-footer role-guest-only">
+            <span>NutriQuant</span>
+            <p>Minimal nutrition setup for clients, with coach operations available only to admin users.</p>
+        </footer>
     </main>
 
     <!-- Authentication Overlay Modal -->
@@ -1537,7 +1628,7 @@
         </button>
         <button class="mobile-nav-tab active" data-tab="calculator" type="button">
             <i data-lucide="user-cog"></i>
-            <span>Profile</span>
+            <span>Setup</span>
         </button>
         <button class="mobile-nav-tab" data-tab="history" type="button">
             <i data-lucide="line-chart"></i>
@@ -1577,7 +1668,7 @@
             username: {% if user %}"{{ user.username }}"{% else %}null{% endif %},
             userId: {% if user %}{{ user.id }}{% else %}null{% endif %},
             isAdmin: {% if user and user.is_admin %}true{% else %}false{% endif %},
-            subscriptionTier: {% if user and user.subscription_tier %}"{{ user.subscription_tier }}"{% else %}"free"{% endif %}
+            role: {% if user and user.is_admin %}"admin"{% elif user %}"client"{% else %}"guest"{% endif %}
         };
     </script>
     <!-- Project JavaScript Controller -->

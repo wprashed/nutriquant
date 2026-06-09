@@ -107,32 +107,18 @@ class NutriQuantTestCase(unittest.TestCase):
         foods = db.get_all_foods()
         self.assertGreaterEqual(len(foods), 1000)
 
-    def test_subscription_tier_is_managed(self):
-        # Register and login a normal client
-        self.register_user('sub_user', 'pass123')
-        self.login_user('sub_user', 'pass123')
+    def test_subscription_system_removed_from_public_api(self):
+        self.register_user('client_without_subscription', 'pass123')
+        self.login_user('client_without_subscription', 'pass123')
 
-        # Verify initial subscription tier is 'free'
         res = self.client.get('/api/profile')
         self.assertEqual(res.status_code, 200)
         data = json.loads(res.data)
-        self.assertEqual(data['user']['subscription_tier'], 'free')
-        self.assertIn('plan', data['user'])
-        self.assertEqual(data['user']['plan']['label'], 'Free')
+        self.assertNotIn('subscription_tier', data['user'])
+        self.assertNotIn('plan', data['user'])
 
-        # Verify clients cannot self-upgrade without billing/admin approval
-        res = self.client.post('/api/user/subscription', json={
-            'subscription_tier': 'premium'
-        })
-        self.assertEqual(res.status_code, 403)
-        data = json.loads(res.data)
-        self.assertIn('managed by an administrator', data['error'])
-        self.assertEqual(data['subscription_tier'], 'free')
-
-        # Check profile again to verify plan was not changed
-        res = self.client.get('/api/profile')
-        data = json.loads(res.data)
-        self.assertEqual(data['user']['subscription_tier'], 'free')
+        res = self.client.post('/api/user/subscription', json={'subscription_tier': 'premium'})
+        self.assertEqual(res.status_code, 404)
 
     def test_admin_stats_access_control(self):
         # Log in as normal client
@@ -153,24 +139,29 @@ class NutriQuantTestCase(unittest.TestCase):
         self.assertTrue(data['success'])
         self.assertIn('total_users', data['stats'])
 
-    def test_admin_update_subscription(self):
-        # Register user
-        self.register_user('client_to_upgrade', 'pass123')
-        user = self.get_user_by_username('client_to_upgrade')
-        user_id = user['id']
+    def test_admin_stats_expose_coaching_operations(self):
+        self.register_user('client_for_ops', 'pass123')
+        user = self.get_user_by_username('client_for_ops')
+        db.save_onboarding(user['id'], {
+            'dietary_style': 'balanced',
+            'allergies': [],
+            'meal_schedule': 'standard',
+            'region_cuisine': 'global',
+            'coaching_level': 'weekly_coaching'
+        })
+        db.add_checkin(user['id'], 4, 4, 3, 5, 'Solid week')
 
-        # Log in as admin
         self.login_user('admin', 'admin123')
 
-        # Upgrade user subscription tier
-        res = self.client.post(f'/api/admin/users/{user_id}/tier', json={
-            'subscription_tier': 'enterprise'
-        })
+        res = self.client.get('/api/admin/stats')
         self.assertEqual(res.status_code, 200)
-
-        # Verify subscription was persisted
-        client_user = db.get_user_by_id(user_id)
-        self.assertEqual(client_user['subscription_tier'], 'enterprise')
+        stats = json.loads(res.data)['stats']
+        self.assertIn('onboarding_completed', stats)
+        self.assertIn('assigned_clients', stats)
+        self.assertIn('active_last_7_days', stats)
+        self.assertIn('checkins_last_7_days', stats)
+        self.assertNotIn('tiers', stats)
+        self.assertNotIn('estimated_mrr', stats)
 
     def test_predefined_food_crud(self):
         # Log in as admin

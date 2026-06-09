@@ -1047,7 +1047,7 @@ def get_all_users():
     cursor = conn.cursor()
     cursor.execute('''
         SELECT id, username, gender, height_cm, weight_kg, age, activity, goal, created_at,
-               subscription_tier, dietary_style, allergies, meal_schedule, region_cuisine,
+               dietary_style, allergies, meal_schedule, region_cuisine,
                coaching_level, coach_id, client_tags, onboarding_completed
         FROM users 
         WHERE is_admin = 0 
@@ -1088,22 +1088,48 @@ def get_admin_stats():
     cursor.execute("SELECT COUNT(*) FROM admin_audit_logs")
     total_audit_logs = cursor.fetchone()[0]
     
-    # 5. Subscription distribution and MRR
+    # 5. Operational coaching metrics
     cursor.execute('''
-        SELECT subscription_tier, COUNT(*) as count 
-        FROM users 
-        WHERE is_admin = 0 
-        GROUP BY subscription_tier
+        SELECT COUNT(*) FROM users
+        WHERE is_admin = 0 AND onboarding_completed = 1
     ''')
-    tiers = {row['subscription_tier'] or 'free': row['count'] for row in cursor.fetchall()}
-    
-    # Fill defaults if missing
-    for t in ['free', 'premium', 'enterprise']:
-        if t not in tiers:
-            tiers[t] = 0
-            
-    # Compute MRR
-    estimated_mrr = tiers['premium'] * 29 + tiers['enterprise'] * 99
+    onboarding_completed = cursor.fetchone()[0]
+
+    cursor.execute('''
+        SELECT COUNT(*) FROM users
+        WHERE is_admin = 0 AND coach_id IS NOT NULL
+    ''')
+    assigned_clients = cursor.fetchone()[0]
+
+    cursor.execute('''
+        SELECT COUNT(DISTINCT user_id)
+        FROM daily_intake
+        WHERE logged_date >= date('now', '-7 day')
+          AND (calories > 0 OR water_ml > 0 OR protein > 0 OR carbs > 0 OR fat > 0)
+    ''')
+    active_last_7_days = cursor.fetchone()[0]
+
+    cursor.execute('''
+        SELECT COUNT(*) FROM checkins
+        WHERE checked_at >= datetime('now', '-7 day')
+    ''')
+    checkins_last_7_days = cursor.fetchone()[0]
+
+    cursor.execute('''
+        SELECT goal, COUNT(*) as count
+        FROM users
+        WHERE is_admin = 0 AND goal IS NOT NULL
+        GROUP BY goal
+    ''')
+    goals = {row['goal']: row['count'] for row in cursor.fetchall()}
+
+    cursor.execute('''
+        SELECT activity, COUNT(*) as count
+        FROM users
+        WHERE is_admin = 0 AND activity IS NOT NULL
+        GROUP BY activity
+    ''')
+    activities = {row['activity']: row['count'] for row in cursor.fetchall()}
         
     conn.close()
     return {
@@ -1113,8 +1139,12 @@ def get_admin_stats():
         "avg_weight": round(avg_weight or 0, 1),
         "total_foods": total_foods,
         "total_audit_logs": total_audit_logs,
-        "tiers": tiers,
-        "estimated_mrr": estimated_mrr
+        "onboarding_completed": onboarding_completed,
+        "assigned_clients": assigned_clients,
+        "active_last_7_days": active_last_7_days,
+        "checkins_last_7_days": checkins_last_7_days,
+        "goals": goals,
+        "activities": activities
     }
 
 def delete_user(user_id):
@@ -1498,7 +1528,7 @@ def delete_food(food_id):
 
 
 # -------------------------------------------------------------
-# Admin Audit Logging & Subscriptions
+# Admin Audit Logging
 # -------------------------------------------------------------
 def log_admin_action(admin_id, action_type, target_info, details):
     """Inserts a record into the admin_audit_logs table."""
@@ -1530,24 +1560,6 @@ def get_admin_audit_logs(limit=50):
     logs = cursor.fetchall()
     conn.close()
     return [dict(l) for l in logs]
-
-def update_user_subscription(user_id, tier):
-    """Updates a client's subscription tier level (free, premium, enterprise)."""
-    conn = get_db()
-    cursor = conn.cursor()
-    try:
-        cursor.execute('''
-            UPDATE users
-            SET subscription_tier = ?
-            WHERE id = ? AND is_admin = 0
-        ''', (tier.strip().lower(), user_id))
-        conn.commit()
-        return cursor.rowcount > 0
-    except Exception:
-        return False
-    finally:
-        conn.close()
-
 
 # -------------------------------------------------------------
 # Exercise Logging (B2C)

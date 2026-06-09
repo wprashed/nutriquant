@@ -11,16 +11,14 @@ document.addEventListener('DOMContentLoaded', () => {
         isLoggedIn: window.bootstrapSession ? window.bootstrapSession.isLoggedIn : false,
         username: window.bootstrapSession ? window.bootstrapSession.username : null,
         userId: window.bootstrapSession ? window.bootstrapSession.userId : null,
-        isAdmin: window.bootstrapSession ? window.bootstrapSession.isAdmin : false,
-        subscriptionTier: window.bootstrapSession ? (window.bootstrapSession.subscriptionTier || 'free') : 'free',
-        plan: window.bootstrapSession ? (window.bootstrapSession.plan || null) : null
+        isAdmin: window.bootstrapSession ? window.bootstrapSession.isAdmin : false
     };
 
     let weightChartInstance = null;
     let adminChartInstance = null;
     let goalChartInstance = null;
     let activityChartInstance = null;
-    let tierChartInstance = null;
+    let opsChartInstance = null;
     let selectedClientIdForAdmin = null;
     let predefinedFoods = [];
     let foodLoggingMode = 'select'; // 'select' or 'custom'
@@ -182,16 +180,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const adminPanelFoods = document.getElementById('admin-panel-foods');
     const adminPanelSystem = document.getElementById('admin-panel-system');
 
-    // SaaS Stats & Filters Elements
-    const adminValMrr = document.getElementById('admin-val-mrr');
-    const adminValActiveSubs = document.getElementById('admin-val-active-subs');
+    // Admin Stats & Filters Elements
+    const adminValActiveWeek = document.getElementById('admin-val-active-week');
+    const adminValCheckinsWeek = document.getElementById('admin-val-checkins-week');
+    const adminValOnboardingComplete = document.getElementById('admin-val-onboarding-complete');
     const adminValTotalFoods = document.getElementById('admin-val-total-foods');
     const adminValTotalLogs = document.getElementById('admin-val-total-logs');
     
     const adminUserSearch = document.getElementById('admin-user-search');
-    const adminUserTierFilter = document.getElementById('admin-user-tier-filter');
+    const adminUserCoachFilter = document.getElementById('admin-user-coach-filter');
     const adminUserGoalFilter = document.getElementById('admin-user-goal-filter');
-    const adminClientTierSelect = document.getElementById('admin-client-tier-select');
+    const adminClientCoachingStatus = document.getElementById('admin-client-coaching-status');
 
     // Predefined Food DB elements
     const adminFoodsTbody = document.getElementById('admin-foods-tbody');
@@ -480,6 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
+            if (tab.classList.contains('hidden')) return;
             tabs.forEach(t => t.classList.remove('active'));
             panels.forEach(p => {
                 p.classList.remove('active');
@@ -528,6 +528,28 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    document.querySelectorAll('.modern-app-intro [data-tab], .dashboard-hero [data-tab]').forEach(action => {
+        action.addEventListener('click', () => {
+            const targetTab = document.querySelector(`.nav-tab[data-tab="${action.dataset.tab}"]`);
+            if (targetTab && !targetTab.classList.contains('hidden')) targetTab.click();
+        });
+    });
+
+    const btnIntroSignin = document.getElementById('btn-intro-signin');
+    if (btnIntroSignin) {
+        btnIntroSignin.addEventListener('click', openAuthModal);
+    }
+
+    const btnHeroMealPlan = document.getElementById('btn-hero-meal-plan');
+    if (btnHeroMealPlan) {
+        btnHeroMealPlan.addEventListener('click', () => {
+            const dashboardTab = document.getElementById('tab-dashboard');
+            if (dashboardTab) dashboardTab.click();
+            const planButton = document.getElementById('btn-generate-meal-plan');
+            if (planButton) planButton.click();
+        });
+    }
 
     // Consolidated Quick-Logger tabs handler
     const quickLogTabBtns = document.querySelectorAll('.quick-log-tab-btn');
@@ -604,7 +626,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // -------------------------------------------------------------
     // Session State Rendering
     // -------------------------------------------------------------
+    function applyRoleVisibility() {
+        document.body.classList.toggle('is-guest', !session.isLoggedIn);
+        document.body.classList.toggle('is-client', session.isLoggedIn && !session.isAdmin);
+        document.body.classList.toggle('is-admin', session.isLoggedIn && session.isAdmin);
+    }
+
     function updateSessionUI() {
+        applyRoleVisibility();
         if (session.isLoggedIn) {
             btnShowAuth.classList.add('hidden');
             userGreeting.classList.remove('hidden');
@@ -677,33 +706,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updatePlanUI(user = {}) {
-        const subscriptionTier = user.subscription_tier || session.subscriptionTier || 'free';
-        const plan = user.plan || session.plan || null;
-        session.subscriptionTier = subscriptionTier;
-        session.plan = plan;
-
-        const tierSelectEl = document.getElementById('user-subscription-tier');
-        const tierBadgeEl = document.getElementById('user-current-tier-badge');
-        const planFeatureList = document.getElementById('user-plan-feature-list');
+        const workflowBadge = document.getElementById('workflow-status-badge');
         const planManageHint = document.getElementById('user-plan-manage-hint');
 
-        if (tierSelectEl) {
-            tierSelectEl.value = subscriptionTier;
-            tierSelectEl.disabled = true;
-            tierSelectEl.setAttribute('aria-readonly', 'true');
-        }
-        if (tierBadgeEl) {
-            tierBadgeEl.textContent = subscriptionTier;
-            tierBadgeEl.className = `tier-badge tier-${subscriptionTier}`;
-        }
-        if (planFeatureList && plan && Array.isArray(plan.features)) {
-            planFeatureList.innerHTML = plan.features
-                .map(feature => `<li>${feature}</li>`)
-                .join('');
+        if (workflowBadge) {
+            const completed = Boolean(user.onboarding_completed);
+            workflowBadge.textContent = completed ? 'onboarded' : 'setup';
+            workflowBadge.className = `tier-badge ${completed ? 'tier-premium' : 'tier-free'}`;
         }
         if (planManageHint) {
             planManageHint.textContent = session.isLoggedIn
-                ? "Plan changes are managed from the coach/admin console until billing is connected."
+                ? "Your setup connects directly to dashboard logging, meal planning, progress trends, and coach check-ins."
                 : "Create an account to save targets and unlock client tracking workflows.";
         }
     }
@@ -804,8 +817,6 @@ document.addEventListener('DOMContentLoaded', () => {
             session.username = data.user.username;
             session.userId = data.user.id;
             session.isAdmin = false;
-            session.subscriptionTier = data.user.subscription_tier || 'free';
-            session.plan = data.user.plan || null;
             
             updateSessionUI();
             updatePlanUI(data.user);
@@ -842,8 +853,6 @@ document.addEventListener('DOMContentLoaded', () => {
             session.username = data.user.username;
             session.userId = data.user.id;
             session.isAdmin = data.user.is_admin;
-            session.subscriptionTier = data.user.subscription_tier || 'free';
-            session.plan = data.user.plan || null;
             
             updateSessionUI();
             updatePlanUI(data.user);
@@ -869,8 +878,6 @@ document.addEventListener('DOMContentLoaded', () => {
             session.username = null;
             session.userId = null;
             session.isAdmin = false;
-            session.subscriptionTier = 'free';
-            session.plan = null;
             
             stopSystemHealth();
             updateSessionUI();
@@ -977,8 +984,6 @@ document.addEventListener('DOMContentLoaded', () => {
             outputSection.scrollIntoView({ behavior: 'smooth' });
         }
 
-        const subscriptionTier = session.subscriptionTier || 'free';
-
         const doCalculate = () => {
             fetch('/api/calculate', {
                 method: 'POST',
@@ -1002,12 +1007,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadingView.classList.add('hidden');
                 dashboardView.classList.remove('hidden');
                 renderDashboard(data);
-                
-                const tierBadgeEl = document.getElementById('user-current-tier-badge');
-                if (tierBadgeEl) {
-                    tierBadgeEl.textContent = subscriptionTier;
-                    tierBadgeEl.className = `tier-badge tier-${subscriptionTier}`;
-                }
             })
             .catch(err => {
                 loadingView.classList.add('hidden');
@@ -1343,13 +1342,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // SaaS Analytics Info Cards
-            if (adminValMrr) {
-                adminValMrr.textContent = `$${stats.estimated_mrr || 0}`;
+            if (adminValActiveWeek) {
+                adminValActiveWeek.textContent = stats.active_last_7_days || 0;
             }
-            if (adminValActiveSubs) {
-                const activePlansCount = (stats.tiers.premium || 0) + (stats.tiers.enterprise || 0);
-                adminValActiveSubs.textContent = `${activePlansCount} active paid plans`;
+            if (adminValCheckinsWeek) {
+                adminValCheckinsWeek.textContent = stats.checkins_last_7_days || 0;
+            }
+            if (adminValOnboardingComplete) {
+                adminValOnboardingComplete.textContent = `${stats.onboarding_completed || 0} profiles onboarded`;
             }
             if (adminValTotalFoods) {
                 adminValTotalFoods.textContent = stats.total_foods || 0;
@@ -1360,7 +1360,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Draw Demographics Distribution Charts
             renderAdminDistributionCharts(stats.goals, stats.activities);
-            renderSubscriptionTierChart(stats.tiers);
+            renderAdminOpsChart(stats);
         })
         .catch(err => console.log(err.message));
     }
@@ -1460,36 +1460,39 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function renderSubscriptionTierChart(tiers) {
-        const tierCtx = document.getElementById('adminTierDistChart');
-        if (!tierCtx) return;
+    function renderAdminOpsChart(stats) {
+        const opsCtx = document.getElementById('adminOpsChart');
+        if (!opsCtx) return;
         
-        const labels = ['Free', 'Premium', 'Enterprise'];
-        const data = [tiers.free || 0, tiers.premium || 0, tiers.enterprise || 0];
+        const labels = ['Onboarded', 'Coach Assigned', 'Active 7d', 'Check-ins 7d'];
+        const data = [
+            stats.onboarding_completed || 0,
+            stats.assigned_clients || 0,
+            stats.active_last_7_days || 0,
+            stats.checkins_last_7_days || 0
+        ];
         
-        if (tierChartInstance) {
-            tierChartInstance.data.datasets[0].data = data;
-            tierChartInstance.update();
+        if (opsChartInstance) {
+            opsChartInstance.data.datasets[0].data = data;
+            opsChartInstance.update();
         } else {
-            tierChartInstance = new Chart(tierCtx.getContext('2d'), {
-                type: 'doughnut',
+            opsChartInstance = new Chart(opsCtx.getContext('2d'), {
+                type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [{
                         data: data,
-                        backgroundColor: ['#64748b', '#6366f1', '#06b6d4'],
-                        borderWidth: 1,
-                        borderColor: 'rgba(255, 255, 255, 0.1)'
+                        backgroundColor: ['#2563eb', '#0f766e', '#14b8a6', '#f59e0b'],
+                        borderWidth: 0
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'right',
-                            labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 } }
-                        }
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#64748b', font: { family: 'Inter', size: 10 } } },
+                        y: { beginAtZero: true, grid: { color: '#e2e8f0' }, ticks: { color: '#64748b', font: { family: 'Inter', size: 10 }, precision: 0 } }
                     }
                 }
             });
@@ -1512,15 +1515,19 @@ document.addEventListener('DOMContentLoaded', () => {
     function filterAndRenderAdminUsers() {
         const isMetric = unitMetric.checked;
         const searchQuery = adminUserSearch ? adminUserSearch.value.toLowerCase().trim() : '';
-        const selectedTier = adminUserTierFilter ? adminUserTierFilter.value : 'all';
+        const selectedCoachStatus = adminUserCoachFilter ? adminUserCoachFilter.value : 'all';
         const selectedGoal = adminUserGoalFilter ? adminUserGoalFilter.value : 'all';
 
         // Filter users
         const filteredUsers = allUsersData.filter(user => {
             const matchesSearch = user.username.toLowerCase().includes(searchQuery);
-            const matchesTier = selectedTier === 'all' || (user.subscription_tier || 'free') === selectedTier;
+            const matchesCoachStatus =
+                selectedCoachStatus === 'all' ||
+                (selectedCoachStatus === 'assigned' && Boolean(user.coach_id)) ||
+                (selectedCoachStatus === 'unassigned' && !user.coach_id) ||
+                (selectedCoachStatus === 'onboarded' && Boolean(user.onboarding_completed));
             const matchesGoal = selectedGoal === 'all' || user.goal === selectedGoal;
-            return matchesSearch && matchesTier && matchesGoal;
+            return matchesSearch && matchesCoachStatus && matchesGoal;
         });
 
         adminUsersTbody.innerHTML = '';
@@ -1536,17 +1543,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 weightVal = isMetric ? `${Math.round(user.weight_kg)} kg` : `${Math.round(user.weight_kg * 2.20462)} lbs`;
             }
 
-            const genderSymbol = user.gender === 'female' ? 'Female' : 'Male';
-            const tier = user.subscription_tier || 'free';
-            let tierClass = 'tier-free';
-            if (tier === 'premium') tierClass = 'tier-premium';
-            else if (tier === 'enterprise') tierClass = 'tier-enterprise';
-            const tierBadge = `<span class="tier-badge ${tierClass}">${tier}</span>`;
+            const genderSymbol = user.gender === 'female' ? 'Female' : user.gender === 'male' ? 'Male' : '—';
+            const coachingLabel = user.coach_id ? 'assigned' : user.onboarding_completed ? 'onboarded' : 'setup';
+            const coachingClass = user.coach_id ? 'tier-premium' : user.onboarding_completed ? 'tier-enterprise' : 'tier-free';
+            const coachingBadge = `<span class="tier-badge ${coachingClass}">${coachingLabel}</span>`;
 
             const row = `
                 <tr data-id="${user.id}">
                     <td><strong>${user.username}</strong></td>
-                    <td>${tierBadge}</td>
+                    <td>${coachingBadge}</td>
                     <td>${genderSymbol}</td>
                     <td>${user.age || "—"}</td>
                     <td>${weightVal}</td>
@@ -1576,37 +1581,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (adminUserSearch) {
         adminUserSearch.addEventListener('input', filterAndRenderAdminUsers);
     }
-    if (adminUserTierFilter) {
-        adminUserTierFilter.addEventListener('change', filterAndRenderAdminUsers);
+    if (adminUserCoachFilter) {
+        adminUserCoachFilter.addEventListener('change', filterAndRenderAdminUsers);
     }
     if (adminUserGoalFilter) {
         adminUserGoalFilter.addEventListener('change', filterAndRenderAdminUsers);
-    }
-
-    // Bind tier upgrade select
-    if (adminClientTierSelect) {
-        adminClientTierSelect.addEventListener('change', () => {
-            if (!selectedClientIdForAdmin) return;
-            const newTier = adminClientTierSelect.value;
-            fetch(`/api/admin/users/${selectedClientIdForAdmin}/tier`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ subscription_tier: newTier })
-            })
-            .then(res => {
-                if (!res.ok) throw new Error("Failed to update subscription plan");
-                return res.json();
-            })
-            .then(() => {
-                // Update local model
-                const userIndex = allUsersData.findIndex(u => u.id == selectedClientIdForAdmin);
-                if (userIndex !== -1) {
-                    allUsersData[userIndex].subscription_tier = newTier;
-                }
-                filterAndRenderAdminUsers();
-            })
-            .catch(err => alert(err.message));
-        });
     }
 
     function loadClientInsights(user) {
@@ -1630,9 +1609,10 @@ document.addEventListener('DOMContentLoaded', () => {
             adminClientWeight.textContent = "—";
         }
 
-        // Set Plan Select dropdown
-        if (adminClientTierSelect) {
-            adminClientTierSelect.value = user.subscription_tier || 'free';
+        if (adminClientCoachingStatus) {
+            const status = user.coach_id ? 'Coach assigned' : user.onboarding_completed ? 'Onboarded' : 'Setup needed';
+            adminClientCoachingStatus.textContent = status;
+            adminClientCoachingStatus.className = `tier-badge ${user.coach_id ? 'tier-premium' : user.onboarding_completed ? 'tier-enterprise' : 'tier-free'}`;
         }
         const tagsInput = document.getElementById('admin-client-tags');
         const coachInput = document.getElementById('admin-coach-id');
@@ -2350,6 +2330,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (el) el.textContent = val;
         };
         setText('adherence-score-pill', `${progress.adherence_score}`);
+        setText('hero-adherence-score', `${progress.adherence_score}/100`);
         setText('insight-streak', `${progress.streak_days} days`);
         setText('insight-macro-consistency', `${progress.macro_consistency_pct}%`);
         setText('insight-goal-eta', progress.goal_eta && progress.goal_eta.eta_date ? progress.goal_eta.eta_date : 'Needs trend');
@@ -2534,6 +2515,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const burnedCal = data.total_exercise_calories || 0;
             const remainingCal = Math.max(0, targetCal - consumedCal + burnedCal);
             userDashboardCalRemaining.textContent = formatNumber(remainingCal);
+            const heroCalRemaining = document.getElementById('hero-cal-remaining');
+            if (heroCalRemaining) {
+                heroCalRemaining.textContent = `${formatNumber(remainingCal)} kcal`;
+            }
             userDashboardCalTarget.textContent = `${formatNumber(targetCal)} kcal`;
             userDashboardCalConsumed.textContent = `${formatNumber(consumedCal)} kcal`;
             if (userDashboardCalBurned) {
