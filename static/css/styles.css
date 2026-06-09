@@ -2739,6 +2739,207 @@ input[type="range"]::-moz-range-thumb:hover {
     margin-top: 4px;
 }
 
+.plan-status-card {
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding-top: 20px;
+    margin-top: 20px;
+    margin-bottom: 24px;
+}
+
+.plan-status-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.plan-tier-readonly {
+    width: 100%;
+    height: 38px;
+    opacity: 0.82;
+    cursor: not-allowed;
+}
+
+.plan-feature-list {
+    display: grid;
+    gap: 6px;
+    margin: 12px 0 0;
+    padding-left: 18px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.plan-feature-list li::marker {
+    color: var(--secondary-light);
+}
+
+.plan-manage-hint {
+    margin-top: 10px;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.onboarding-card,
+.intelligence-card,
+.meal-plan-card,
+.checkin-card,
+.admin-coach-workflow-box {
+    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.025);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    margin-bottom: 18px;
+}
+
+.card-header-row,
+.coach-workflow-actions,
+.food-logger-options {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.onboarding-card h3,
+.intelligence-card h3,
+.meal-plan-card h3,
+.checkin-card h3,
+.admin-coach-workflow-box h3 {
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    margin-bottom: 0;
+}
+
+.onboarding-save-btn {
+    width: 100%;
+    justify-content: center;
+    margin-top: 12px;
+}
+
+.serving-select {
+    width: 118px;
+    height: 38px;
+    font-size: 12px;
+}
+
+.inline-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.logging-shortcuts {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+.shortcut-chip,
+.btn-mini-action {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-secondary);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.shortcut-chip:hover,
+.btn-mini-action:hover {
+    color: var(--text-primary);
+    border-color: var(--border-color-active);
+}
+
+.score-pill {
+    min-width: 42px;
+    text-align: center;
+    border-radius: 999px;
+    padding: 5px 10px;
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    font-weight: 800;
+}
+
+.insight-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.insight-grid div {
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.insight-grid span {
+    display: block;
+    color: var(--text-muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+.insight-grid strong,
+.meal-plan-preview strong {
+    color: var(--text-primary);
+}
+
+.insight-copy,
+.shopping-list-preview,
+.report-output,
+.target-history-list,
+.thread-list {
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.45;
+    margin-top: 12px;
+}
+
+.meal-plan-day {
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding-top: 10px;
+    margin-top: 10px;
+}
+
+.mini-form-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.mini-textarea {
+    grid-column: 1 / -1;
+    min-height: 64px;
+}
+
+.btn-compact-submit {
+    grid-column: 1 / -1;
+    min-height: 36px;
+    font-size: 12px;
+}
+
+.private-thread-box {
+    margin-top: 14px;
+}
+
+.report-output {
+    border: 1px dashed rgba(6, 182, 212, 0.25);
+    border-radius: 8px;
+    padding: 10px;
+    background: rgba(6, 182, 212, 0.05);
+}
+
 /* Autocomplete Food Logger Input & Suggestions */
 .autocomplete-wrapper {
     position: relative;
@@ -3440,6 +3641,4 @@ input[type="range"]::-moz-range-thumb:hover {
     border-color: rgba(99, 102, 241, 0.25);
     box-shadow: 0 8px 32px 0 rgba(99, 102, 241, 0.05);
 }
-
-
 

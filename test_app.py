@@ -107,7 +107,7 @@ class NutriQuantTestCase(unittest.TestCase):
         foods = db.get_all_foods()
         self.assertGreaterEqual(len(foods), 1000)
 
-    def test_subscription_tier_updates(self):
+    def test_subscription_tier_is_managed(self):
         # Register and login a normal client
         self.register_user('sub_user', 'pass123')
         self.login_user('sub_user', 'pass123')
@@ -117,26 +117,22 @@ class NutriQuantTestCase(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         data = json.loads(res.data)
         self.assertEqual(data['user']['subscription_tier'], 'free')
+        self.assertIn('plan', data['user'])
+        self.assertEqual(data['user']['plan']['label'], 'Free')
 
-        # Update own subscription tier to premium
+        # Verify clients cannot self-upgrade without billing/admin approval
         res = self.client.post('/api/user/subscription', json={
             'subscription_tier': 'premium'
         })
-        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.status_code, 403)
         data = json.loads(res.data)
-        self.assertTrue(data['success'])
-        self.assertEqual(data['subscription_tier'], 'premium')
+        self.assertIn('managed by an administrator', data['error'])
+        self.assertEqual(data['subscription_tier'], 'free')
 
-        # Check profile again to verify persistence
+        # Check profile again to verify plan was not changed
         res = self.client.get('/api/profile')
         data = json.loads(res.data)
-        self.assertEqual(data['user']['subscription_tier'], 'premium')
-
-        # Verify invalid tier validation
-        res = self.client.post('/api/user/subscription', json={
-            'subscription_tier': 'unlimited'
-        })
-        self.assertEqual(res.status_code, 400)
+        self.assertEqual(data['user']['subscription_tier'], 'free')
 
     def test_admin_stats_access_control(self):
         # Log in as normal client
@@ -343,6 +339,97 @@ class NutriQuantTestCase(unittest.TestCase):
         self.assertTrue(data['success'])
         self.assertEqual(data['total_exercise_calories'], 150)
         self.assertEqual(len(data['logs']), 1)
+
+    def test_onboarding_meal_plan_and_progress_intelligence(self):
+        self.register_user('product_user', 'pass123')
+        self.login_user('product_user', 'pass123')
+
+        res = self.client.post('/api/onboarding', json={
+            'dietary_style': 'high_protein',
+            'allergies': ['shellfish'],
+            'meal_schedule': 'standard',
+            'region_cuisine': 'mediterranean',
+            'coaching_level': 'weekly_coaching'
+        })
+        self.assertEqual(res.status_code, 200)
+        data = json.loads(res.data)
+        self.assertTrue(data['user']['onboarding_completed'])
+        self.assertEqual(data['user']['allergies'], ['shellfish'])
+
+        res = self.client.post('/api/calculate', json={
+            'age': 34,
+            'height_cm': 178,
+            'weight_kg': 84,
+            'gender': 'male',
+            'activity': 'moderate',
+            'goal': 'lose_mild'
+        })
+        self.assertEqual(res.status_code, 200)
+        calc = json.loads(res.data)
+        self.assertIn('standards', calc)
+        self.assertIn('bmi_category', calc)
+        self.assertGreaterEqual(calc['macros']['carbs']['percentage'], 45)
+
+        res = self.client.post('/api/user/meal-plan', json={})
+        self.assertEqual(res.status_code, 200)
+        plan = json.loads(res.data)['meal_plan']
+        self.assertEqual(len(plan['plan']['days']), 7)
+        self.assertGreater(len(plan['shopping']), 0)
+
+        res = self.client.get('/api/user/progress')
+        self.assertEqual(res.status_code, 200)
+        progress = json.loads(res.data)['progress']
+        self.assertIn('adherence_score', progress)
+        self.assertIn('why_weight_changed', progress)
+
+    def test_food_logging_shortcuts_and_favorites(self):
+        self.register_user('shortcut_user', 'pass123')
+        self.login_user('shortcut_user', 'pass123')
+
+        res = self.client.post('/api/user/food', json={
+            'date_str': '2026-06-09',
+            'food_name': 'Branded Protein Yogurt',
+            'amount_g': 150,
+            'calories': 160,
+            'protein': 20,
+            'carbs': 12,
+            'fat': 3,
+            'favorite': True
+        })
+        self.assertEqual(res.status_code, 200)
+        data = json.loads(res.data)
+        self.assertGreaterEqual(len(data['favorite_foods']), 1)
+
+        res = self.client.get('/api/user/logging/shortcuts')
+        self.assertEqual(res.status_code, 200)
+        shortcuts = json.loads(res.data)
+        self.assertGreaterEqual(len(shortcuts['recent_foods']), 1)
+        self.assertIn('serving_units', shortcuts)
+
+    def test_coach_assignment_thread_and_weekly_report(self):
+        self.register_user('coached_client', 'pass123')
+        user = self.get_user_by_username('coached_client')
+        user_id = user['id']
+
+        self.login_user('admin', 'admin123')
+        res = self.client.post(f'/api/admin/users/{user_id}/coach', json={
+            'coach_id': 1,
+            'client_tags': ['weekly', 'fat-loss']
+        })
+        self.assertEqual(res.status_code, 200)
+        data = json.loads(res.data)
+        self.assertEqual(data['user']['client_tags'], ['weekly', 'fat-loss'])
+
+        res = self.client.post(f'/api/admin/users/{user_id}/thread', json={
+            'message': 'Please send your Sunday check-in.'
+        })
+        self.assertEqual(res.status_code, 200)
+
+        res = self.client.get(f'/api/admin/users/{user_id}/weekly-report')
+        self.assertEqual(res.status_code, 200)
+        report = json.loads(res.data)['report']
+        self.assertEqual(report['client']['username'], 'coached_client')
+        self.assertIn('target_history', report)
 
 if __name__ == '__main__':
     unittest.main()

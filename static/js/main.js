@@ -11,7 +11,9 @@ document.addEventListener('DOMContentLoaded', () => {
         isLoggedIn: window.bootstrapSession ? window.bootstrapSession.isLoggedIn : false,
         username: window.bootstrapSession ? window.bootstrapSession.username : null,
         userId: window.bootstrapSession ? window.bootstrapSession.userId : null,
-        isAdmin: window.bootstrapSession ? window.bootstrapSession.isAdmin : false
+        isAdmin: window.bootstrapSession ? window.bootstrapSession.isAdmin : false,
+        subscriptionTier: window.bootstrapSession ? (window.bootstrapSession.subscriptionTier || 'free') : 'free',
+        plan: window.bootstrapSession ? (window.bootstrapSession.plan || null) : null
     };
 
     let weightChartInstance = null;
@@ -24,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let foodLoggingMode = 'select'; // 'select' or 'custom'
     let selectedAutocompleteFood = null;
     let currentUserWeight = 70.0;
+    let currentDashboardData = null;
 
     // SaaS Admin Console caching & pagination state
     let allUsersData = [];
@@ -673,6 +676,52 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function updatePlanUI(user = {}) {
+        const subscriptionTier = user.subscription_tier || session.subscriptionTier || 'free';
+        const plan = user.plan || session.plan || null;
+        session.subscriptionTier = subscriptionTier;
+        session.plan = plan;
+
+        const tierSelectEl = document.getElementById('user-subscription-tier');
+        const tierBadgeEl = document.getElementById('user-current-tier-badge');
+        const planFeatureList = document.getElementById('user-plan-feature-list');
+        const planManageHint = document.getElementById('user-plan-manage-hint');
+
+        if (tierSelectEl) {
+            tierSelectEl.value = subscriptionTier;
+            tierSelectEl.disabled = true;
+            tierSelectEl.setAttribute('aria-readonly', 'true');
+        }
+        if (tierBadgeEl) {
+            tierBadgeEl.textContent = subscriptionTier;
+            tierBadgeEl.className = `tier-badge tier-${subscriptionTier}`;
+        }
+        if (planFeatureList && plan && Array.isArray(plan.features)) {
+            planFeatureList.innerHTML = plan.features
+                .map(feature => `<li>${feature}</li>`)
+                .join('');
+        }
+        if (planManageHint) {
+            planManageHint.textContent = session.isLoggedIn
+                ? "Plan changes are managed from the coach/admin console until billing is connected."
+                : "Create an account to save targets and unlock client tracking workflows.";
+        }
+    }
+
+    function fillOnboardingForm(user = {}) {
+        const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el && val !== undefined && val !== null) el.value = Array.isArray(val) ? val.join(', ') : val;
+        };
+        setVal('onboarding-dietary-style', user.dietary_style || 'balanced');
+        setVal('onboarding-cuisine', user.region_cuisine || 'global');
+        setVal('onboarding-schedule', user.meal_schedule || 'standard');
+        setVal('onboarding-coaching-level', user.coaching_level || 'self_guided');
+        setVal('onboarding-allergies', user.allergies || []);
+        const badge = document.getElementById('onboarding-status-badge');
+        if (badge) badge.textContent = user.onboarding_completed ? 'complete' : 'setup';
+    }
+
     // -------------------------------------------------------------
     // Fetch Profile Details & Auto-Fill
     // -------------------------------------------------------------
@@ -685,6 +734,8 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(data => {
             const user = data.user;
             if (user.is_admin) return; // Admins don't have biometrics profiles to fill
+            updatePlanUI(user);
+            fillOnboardingForm(user);
             if (!user.age) return;
 
             // Sync inputs
@@ -717,17 +768,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             document.getElementById('goal-select').value = user.goal;
-
-            const subscriptionTier = user.subscription_tier || 'free';
-            const tierSelectEl = document.getElementById('user-subscription-tier');
-            const tierBadgeEl = document.getElementById('user-current-tier-badge');
-            if (tierSelectEl) {
-                tierSelectEl.value = subscriptionTier;
-            }
-            if (tierBadgeEl) {
-                tierBadgeEl.textContent = subscriptionTier;
-                tierBadgeEl.className = `tier-badge tier-${subscriptionTier}`;
-            }
 
             updateUnitSystem();
 
@@ -764,8 +804,11 @@ document.addEventListener('DOMContentLoaded', () => {
             session.username = data.user.username;
             session.userId = data.user.id;
             session.isAdmin = false;
+            session.subscriptionTier = data.user.subscription_tier || 'free';
+            session.plan = data.user.plan || null;
             
             updateSessionUI();
+            updatePlanUI(data.user);
             closeAuthModal();
             form.requestSubmit();
         })
@@ -799,8 +842,11 @@ document.addEventListener('DOMContentLoaded', () => {
             session.username = data.user.username;
             session.userId = data.user.id;
             session.isAdmin = data.user.is_admin;
+            session.subscriptionTier = data.user.subscription_tier || 'free';
+            session.plan = data.user.plan || null;
             
             updateSessionUI();
+            updatePlanUI(data.user);
             closeAuthModal();
             
             if (session.isAdmin) {
@@ -823,6 +869,8 @@ document.addEventListener('DOMContentLoaded', () => {
             session.username = null;
             session.userId = null;
             session.isAdmin = false;
+            session.subscriptionTier = 'free';
+            session.plan = null;
             
             stopSystemHealth();
             updateSessionUI();
@@ -835,12 +883,58 @@ document.addEventListener('DOMContentLoaded', () => {
             updateHeightDisplay();
             updateUnitSystem();
             autoEstimateWeight.checked = false;
+            updatePlanUI();
             
             emptyStateView.classList.remove('hidden');
             dashboardView.classList.add('hidden');
             loadingView.classList.add('hidden');
         });
     });
+
+    const onboardingForm = document.getElementById('onboarding-form');
+    if (onboardingForm) {
+        onboardingForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const status = document.getElementById('onboarding-status');
+            const payload = {
+                dietary_style: document.getElementById('onboarding-dietary-style').value,
+                region_cuisine: document.getElementById('onboarding-cuisine').value,
+                meal_schedule: document.getElementById('onboarding-schedule').value,
+                coaching_level: document.getElementById('onboarding-coaching-level').value,
+                allergies: document.getElementById('onboarding-allergies').value
+                    .split(',')
+                    .map(item => item.trim())
+                    .filter(Boolean)
+            };
+            if (status) status.className = 'status-banner hidden';
+
+            fetch('/api/onboarding', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => {
+                if (!res.ok) return res.json().then(err => { throw new Error(err.error || 'Failed to save onboarding.'); });
+                return res.json();
+            })
+            .then(data => {
+                fillOnboardingForm(data.user);
+                if (status) {
+                    status.textContent = 'Onboarding saved. Dashboard is ready.';
+                    status.className = 'status-banner success';
+                }
+                if (session.isLoggedIn && !session.isAdmin) {
+                    document.getElementById('tab-dashboard').click();
+                }
+            })
+            .catch(err => {
+                if (status) {
+                    status.textContent = err.message;
+                    status.className = 'status-banner error';
+                }
+            });
+        });
+    }
 
     // -------------------------------------------------------------
     // Nutrition Calculator Submission
@@ -883,8 +977,7 @@ document.addEventListener('DOMContentLoaded', () => {
             outputSection.scrollIntoView({ behavior: 'smooth' });
         }
 
-        const tierSelectEl = document.getElementById('user-subscription-tier');
-        const subscriptionTier = tierSelectEl ? tierSelectEl.value : 'free';
+        const subscriptionTier = session.subscriptionTier || 'free';
 
         const doCalculate = () => {
             fetch('/api/calculate', {
@@ -923,26 +1016,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         };
 
-        if (session.isLoggedIn && !session.isAdmin) {
-            fetch('/api/user/subscription', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ subscription_tier: subscriptionTier })
-            })
-            .then(res => {
-                if (!res.ok) throw new Error("Could not update subscription plan");
-                return res.json();
-            })
-            .then(() => {
-                doCalculate();
-            })
-            .catch(err => {
-                console.log(err.message);
-                doCalculate();
-            });
-        } else {
-            doCalculate();
-        }
+        doCalculate();
     });
 
     function renderDashboard(data) {
@@ -1560,6 +1634,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (adminClientTierSelect) {
             adminClientTierSelect.value = user.subscription_tier || 'free';
         }
+        const tagsInput = document.getElementById('admin-client-tags');
+        const coachInput = document.getElementById('admin-coach-id');
+        if (tagsInput) tagsInput.value = Array.isArray(user.client_tags) ? user.client_tags.join(', ') : '';
+        if (coachInput) coachInput.value = user.coach_id || '';
 
         // Mapping Goal labels
         const goalsMap = {
@@ -1630,6 +1708,42 @@ document.addEventListener('DOMContentLoaded', () => {
             renderAdminClientChart(data.history);
         })
         .catch(err => console.log(err.message));
+
+        loadAdminThread(user.id);
+        loadAdminWeeklyReport(user.id, false);
+    }
+
+    function loadAdminThread(userId) {
+        fetch(`/api/admin/users/${userId}/thread`)
+        .then(res => res.json())
+        .then(data => {
+            const list = document.getElementById('admin-thread-list');
+            if (!list) return;
+            const messages = data.messages || [];
+            list.innerHTML = messages.slice(0, 6).map(msg => `<p><strong>${msg.sender_username}:</strong> ${msg.message}</p>`).join('') || '<p>No private thread messages yet.</p>';
+        });
+    }
+
+    function loadAdminWeeklyReport(userId, showOutput = true) {
+        fetch(`/api/admin/users/${userId}/weekly-report`)
+        .then(res => res.json())
+        .then(data => {
+            const report = data.report;
+            const targetList = document.getElementById('admin-target-history-list');
+            if (targetList) {
+                const history = report.target_history || [];
+                targetList.innerHTML = history.length
+                    ? `<h4>Target History</h4>${history.map(item => `<p>${item.created_at}: ${item.calories} kcal, ${item.protein}g P (${item.reason || 'update'})</p>`).join('')}`
+                    : '<p>No target override history yet.</p>';
+            }
+            if (showOutput) {
+                const output = document.getElementById('admin-weekly-report-output');
+                if (output) {
+                    output.classList.remove('hidden');
+                    output.innerHTML = `<strong>Weekly Report Ready</strong><p>Period: ${report.period.start} to ${report.period.end}</p><p>Adherence: ${report.progress ? report.progress.adherence_score : 'n/a'} • Streak: ${report.progress ? report.progress.streak_days : 0} days</p>`;
+                }
+            }
+        });
     }
 
     function renderAdminClientChart(history) {
@@ -2085,6 +2199,65 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const btnAssignCoach = document.getElementById('btn-assign-coach');
+    if (btnAssignCoach) {
+        btnAssignCoach.addEventListener('click', () => {
+            if (!selectedClientIdForAdmin) return;
+            const status = document.getElementById('admin-coach-workflow-status');
+            const tags = (document.getElementById('admin-client-tags').value || '').split(',').map(t => t.trim()).filter(Boolean);
+            const coachId = document.getElementById('admin-coach-id').value || session.userId;
+            fetch(`/api/admin/users/${selectedClientIdForAdmin}/coach`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ coach_id: coachId, client_tags: tags })
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('Failed to assign coach.');
+                return res.json();
+            })
+            .then(() => {
+                if (status) {
+                    status.textContent = 'Coach assignment saved.';
+                    status.className = 'status-banner success';
+                }
+                fetchAdminUsers();
+            })
+            .catch(err => {
+                if (status) {
+                    status.textContent = err.message;
+                    status.className = 'status-banner error';
+                }
+            });
+        });
+    }
+
+    const btnExportWeeklyReport = document.getElementById('btn-export-weekly-report');
+    if (btnExportWeeklyReport) {
+        btnExportWeeklyReport.addEventListener('click', () => {
+            if (selectedClientIdForAdmin) loadAdminWeeklyReport(selectedClientIdForAdmin, true);
+        });
+    }
+
+    const btnSendThreadMessage = document.getElementById('btn-send-thread-message');
+    if (btnSendThreadMessage) {
+        btnSendThreadMessage.addEventListener('click', () => {
+            if (!selectedClientIdForAdmin) return;
+            const textarea = document.getElementById('admin-thread-message');
+            const message = textarea.value.trim();
+            if (!message) return;
+            fetch(`/api/admin/users/${selectedClientIdForAdmin}/thread`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message })
+            })
+            .then(res => res.json())
+            .then(() => {
+                textarea.value = '';
+                loadAdminThread(selectedClientIdForAdmin);
+            });
+        });
+    }
+
     // Wire Target Overrides Form Submit
     if (adminOverrideForm) {
         adminOverrideForm.addEventListener('submit', (e) => {
@@ -2170,6 +2343,63 @@ document.addEventListener('DOMContentLoaded', () => {
     // -------------------------------------------------------------
     // User Dashboard Overview Controller
     // -------------------------------------------------------------
+    function renderProgressIntelligence(progress) {
+        if (!progress) return;
+        const setText = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val;
+        };
+        setText('adherence-score-pill', `${progress.adherence_score}`);
+        setText('insight-streak', `${progress.streak_days} days`);
+        setText('insight-macro-consistency', `${progress.macro_consistency_pct}%`);
+        setText('insight-goal-eta', progress.goal_eta && progress.goal_eta.eta_date ? progress.goal_eta.eta_date : 'Needs trend');
+        setText('insight-why', progress.why_weight_changed || 'Keep logging to unlock explanations.');
+    }
+
+    function renderMealPlan(mealPlan) {
+        const preview = document.getElementById('meal-plan-preview');
+        const shopping = document.getElementById('shopping-list-preview');
+        if (!preview) return;
+        if (!mealPlan || !mealPlan.plan || !mealPlan.plan.days) {
+            preview.innerHTML = '<p class="empty-inbox-text">Generate a macro-aware weekly plan and shopping list from your current targets.</p>';
+            if (shopping) shopping.innerHTML = '';
+            return;
+        }
+        preview.innerHTML = mealPlan.plan.days.slice(0, 2).map(day => `
+            <div class="meal-plan-day">
+                <strong>${day.date}</strong>
+                ${day.meals.map(meal => `<p>${meal.name}: ${meal.food} (${meal.calories} kcal)</p>`).join('')}
+            </div>
+        `).join('');
+        const list = mealPlan.shopping || mealPlan.shopping_list || [];
+        if (shopping) {
+            shopping.innerHTML = list.slice(0, 8).map(item => `${item.item}: ${Math.round(item.amount_g)}g`).join(' • ');
+        }
+    }
+
+    function renderLoggingShortcuts(data) {
+        const wrap = document.getElementById('logging-shortcuts');
+        if (!wrap) return;
+        const items = [
+            ...(data.favorite_foods || []).slice(0, 4).map(food => ({ label: `★ ${food.food_name}`, name: food.food_name })),
+            ...(data.recent_foods || []).slice(0, 4).map(food => ({ label: `Recent: ${food.food_name}`, name: food.food_name }))
+        ];
+        if (items.length === 0) {
+            wrap.innerHTML = '';
+            return;
+        }
+        wrap.innerHTML = items.map(item => `<button type="button" class="shortcut-chip" data-food-name="${item.name}">${item.label}</button>`).join('');
+        wrap.querySelectorAll('.shortcut-chip').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const input = document.getElementById('food-search-input');
+                if (input) {
+                    input.value = btn.dataset.foodName;
+                    input.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter' }));
+                }
+            });
+        });
+    }
+
     function loadUserDashboard() {
         const todayStr = new Date().toISOString().split('T')[0];
         fetch(`/api/user/dashboard?date=${todayStr}`)
@@ -2183,12 +2413,62 @@ document.addEventListener('DOMContentLoaded', () => {
         .catch(err => console.log(err.message));
     }
 
+    const btnGenerateMealPlan = document.getElementById('btn-generate-meal-plan');
+    if (btnGenerateMealPlan) {
+        btnGenerateMealPlan.addEventListener('click', () => {
+            btnGenerateMealPlan.disabled = true;
+            btnGenerateMealPlan.textContent = 'Building...';
+            fetch('/api/user/meal-plan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            })
+            .then(res => {
+                if (!res.ok) return res.json().then(err => { throw new Error(err.error || 'Could not generate meal plan.'); });
+                return res.json();
+            })
+            .then(() => loadUserDashboard())
+            .catch(err => alert(err.message))
+            .finally(() => {
+                btnGenerateMealPlan.disabled = false;
+                btnGenerateMealPlan.textContent = 'Generate';
+            });
+        });
+    }
+
+    const checkinForm = document.getElementById('client-checkin-form');
+    if (checkinForm) {
+        checkinForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            fetch('/api/user/checkins', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    mood: document.getElementById('checkin-mood').value,
+                    energy: document.getElementById('checkin-energy').value,
+                    hunger: document.getElementById('checkin-hunger').value,
+                    compliance: document.getElementById('checkin-compliance').value,
+                    notes: document.getElementById('checkin-notes').value
+                })
+            })
+            .then(res => res.json())
+            .then(() => {
+                document.getElementById('checkin-notes').value = '';
+                loadUserDashboard();
+            });
+        });
+    }
+
     function renderUserDashboard(data) {
+        currentDashboardData = data;
         userDashboardGreeting.textContent = `Hello, ${data.user.username}!`;
         const welcomeMsg = document.getElementById('user-dashboard-welcome-msg');
         
         const isMetric = unitMetric.checked;
         const daily = data.daily_log;
+        renderProgressIntelligence(data.progress);
+        renderMealPlan(data.meal_plan);
+        renderLoggingShortcuts(data);
         
         if (data.user && data.user.weight_kg) {
             currentUserWeight = data.user.weight_kg;
@@ -2244,6 +2524,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const carbTarget = calc.macros.carbs.grams;
             const fatTarget = calc.macros.fat.grams;
             const waterTargetL = calc.water_l;
+            const proConsumed = daily.protein || 0;
+            const carbConsumed = daily.carbs || 0;
+            const fatConsumed = daily.fat || 0;
+            const waterMl = daily.water_ml || 0;
             
             // Render Calories Ring
             const consumedCal = daily.calories || 0;
@@ -2277,10 +2561,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             // Render Macros Bars
-            const proConsumed = daily.protein || 0;
-            const carbConsumed = daily.carbs || 0;
-            const fatConsumed = daily.fat || 0;
-            
             userDashProteinProgress.textContent = `${proConsumed}g / ${proTarget}g`;
             userDashProteinBar.style.width = `${Math.min(100, (proConsumed / proTarget) * 100)}%`;
             
@@ -2291,7 +2571,6 @@ document.addEventListener('DOMContentLoaded', () => {
             userDashFatsBar.style.width = `${Math.min(100, (fatConsumed / fatTarget) * 100)}%`;
             
             // Hydration widget
-            const waterMl = daily.water_ml || 0;
             userDashWaterTotal.textContent = `${waterMl} ml`;
             userDashWaterTarget.textContent = waterTargetL.toFixed(1);
             
@@ -2632,6 +2911,9 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (foodLoggingMode === 'select') {
                 const amount = parseFloat(foodLogAmount.value);
+                const servingUnit = document.getElementById('food-serving-unit') ? document.getElementById('food-serving-unit').value : 'g';
+                const unitGrams = { g: 1, cup: 240, tbsp: 15, oz: 28.35, piece: 100 }[servingUnit] || 1;
+                const amountInGrams = amount * unitGrams;
                 
                 if (!selectedAutocompleteFood) {
                     alert("Please search and select a food item first.");
@@ -2643,9 +2925,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 
                 const food = selectedAutocompleteFood;
-                const factor = amount / 100.0;
+                const factor = amountInGrams / 100.0;
                 payload.food_name = `${food.name}`;
-                payload.amount_g = amount;
+                payload.food_id = food.id;
+                payload.amount_g = amountInGrams;
+                payload.serving_unit = servingUnit;
+                payload.serving_multiplier = amount;
                 payload.calories = Math.round(food.calories_per_100g * factor);
                 payload.protein = Math.round(food.protein_per_100g * factor);
                 payload.carbs = Math.round(food.carbs_per_100g * factor);
@@ -2669,6 +2954,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 payload.carbs = carbs;
                 payload.fat = fat;
             }
+            payload.favorite = !!(document.getElementById('food-log-favorite') && document.getElementById('food-log-favorite').checked);
             
             fetch('/api/user/food', {
                 method: 'POST',
@@ -2688,6 +2974,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadUserDashboard();
             })
             .catch(err => console.log("Error logging food:", err));
+        });
+    }
+
+    const btnSaveCurrentTemplate = document.getElementById('btn-save-current-template');
+    if (btnSaveCurrentTemplate) {
+        btnSaveCurrentTemplate.addEventListener('click', () => {
+            const entries = currentDashboardData ? (currentDashboardData.food_logs || []) : [];
+            if (entries.length === 0) {
+                alert('Log at least one food before saving a meal template.');
+                return;
+            }
+            const name = prompt('Template name', 'My saved meal');
+            if (!name) return;
+            fetch('/api/user/meal-templates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, entries })
+            })
+            .then(res => res.json())
+            .then(() => loadUserDashboard());
         });
     }
     // Update live estimated burned calories preview
@@ -2886,7 +3192,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         const food = selectedAutocompleteFood;
-        const factor = amount / 100.0;
+        const servingUnit = document.getElementById('food-serving-unit') ? document.getElementById('food-serving-unit').value : 'g';
+        const unitGrams = { g: 1, cup: 240, tbsp: 15, oz: 28.35, piece: 100 }[servingUnit] || 1;
+        const factor = (amount * unitGrams) / 100.0;
         const cal = Math.round(food.calories_per_100g * factor);
         const pro = Math.round(food.protein_per_100g * factor);
         const carb = Math.round(food.carbs_per_100g * factor);
@@ -2947,6 +3255,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (foodLogAmount) {
         foodLogAmount.addEventListener('input', updateLivePreview);
+    }
+    const foodServingUnit = document.getElementById('food-serving-unit');
+    if (foodServingUnit) {
+        foodServingUnit.addEventListener('change', updateLivePreview);
     }
 
     // Toggle logger mode listeners

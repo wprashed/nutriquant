@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import json
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -53,6 +54,24 @@ def init_db():
     if 'subscription_tier' not in columns:
         cursor.execute("ALTER TABLE users ADD COLUMN subscription_tier TEXT DEFAULT 'free'")
         conn.commit()
+
+    # Run column migration check for onboarding and coach workflow fields
+    cursor.execute("PRAGMA table_info(users)")
+    columns = [row['name'] for row in cursor.fetchall()]
+    profile_columns = {
+        'dietary_style': "TEXT DEFAULT 'balanced'",
+        'allergies': "TEXT DEFAULT '[]'",
+        'meal_schedule': "TEXT DEFAULT 'standard'",
+        'region_cuisine': "TEXT DEFAULT 'global'",
+        'coaching_level': "TEXT DEFAULT 'self_guided'",
+        'coach_id': "INTEGER",
+        'client_tags': "TEXT DEFAULT '[]'",
+        'onboarding_completed': "INTEGER DEFAULT 0"
+    }
+    for col, definition in profile_columns.items():
+        if col not in columns:
+            cursor.execute(f"ALTER TABLE users ADD COLUMN {col} {definition}")
+            conn.commit()
     
     # 2. Weight Logs Table
     cursor.execute('''
@@ -749,11 +768,110 @@ def init_db():
         )
     ''')
 
+    # 8. Favorite Foods for faster logging
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS favorite_foods (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            food_id INTEGER,
+            food_name TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (food_id) REFERENCES foods(id) ON DELETE SET NULL,
+            UNIQUE(user_id, food_name)
+        )
+    ''')
+
+    # 9. User food templates and recipes
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS meal_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            entries_json TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS recipes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            servings INTEGER DEFAULT 1,
+            ingredients_json TEXT NOT NULL,
+            calories INTEGER NOT NULL,
+            protein INTEGER NOT NULL,
+            carbs INTEGER NOT NULL,
+            fat INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    ''')
+
+    # 10. Generated weekly plans, coach check-ins, notes, and target history
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS meal_plans (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            week_start TEXT NOT NULL,
+            plan_json TEXT NOT NULL,
+            shopping_json TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            UNIQUE(user_id, week_start)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS checkins (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            mood INTEGER,
+            energy INTEGER,
+            hunger INTEGER,
+            compliance INTEGER,
+            notes TEXT,
+            checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS coach_threads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender_id INTEGER NOT NULL,
+            receiver_id INTEGER NOT NULL,
+            message TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS target_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            admin_id INTEGER,
+            calories INTEGER,
+            protein INTEGER,
+            carbs INTEGER,
+            fat INTEGER,
+            reason TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (admin_id) REFERENCES users(id) ON DELETE SET NULL
+        )
+    ''')
+
     
     # 5. Seed Default Admin User if not exists
     cursor.execute("SELECT * FROM users WHERE username = 'admin'")
     if not cursor.fetchone():
-        password_hash = generate_password_hash('admin123', method='pbkdf2:sha256')
+        admin_password = os.environ.get('NUTRIQUANT_ADMIN_PASSWORD', 'admin123')
+        password_hash = generate_password_hash(admin_password, method='pbkdf2:sha256')
         cursor.execute(
             "INSERT INTO users (username, password_hash, is_admin) VALUES ('admin', ?, 1)",
             (password_hash,)
@@ -812,6 +930,42 @@ def get_user_by_id(user_id):
     user = cursor.fetchone()
     conn.close()
     return dict(user) if user else None
+
+def save_onboarding(user_id, data):
+    """Stores onboarding preferences used by meal planning and coaching workflows."""
+    allergies = data.get('allergies', [])
+    if isinstance(allergies, str):
+        allergies = [a.strip() for a in allergies.split(',') if a.strip()]
+
+    client_tags = data.get('client_tags', [])
+    if isinstance(client_tags, str):
+        client_tags = [t.strip() for t in client_tags.split(',') if t.strip()]
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        UPDATE users
+        SET dietary_style = ?,
+            allergies = ?,
+            meal_schedule = ?,
+            region_cuisine = ?,
+            coaching_level = ?,
+            client_tags = ?,
+            onboarding_completed = 1
+        WHERE id = ? AND is_admin = 0
+    ''', (
+        data.get('dietary_style', 'balanced'),
+        json.dumps(allergies),
+        data.get('meal_schedule', 'standard'),
+        data.get('region_cuisine', 'global'),
+        data.get('coaching_level', 'self_guided'),
+        json.dumps(client_tags),
+        user_id
+    ))
+    conn.commit()
+    success = cursor.rowcount > 0
+    conn.close()
+    return success
 
 def save_profile(user_id, age, height_cm, weight_kg, gender, activity, goal):
     """
@@ -892,7 +1046,9 @@ def get_all_users():
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT id, username, gender, height_cm, weight_kg, age, activity, goal, created_at, subscription_tier 
+        SELECT id, username, gender, height_cm, weight_kg, age, activity, goal, created_at,
+               subscription_tier, dietary_style, allergies, meal_schedule, region_cuisine,
+               coaching_level, coach_id, client_tags, onboarding_completed
         FROM users 
         WHERE is_admin = 0 
         ORDER BY created_at DESC
@@ -1454,3 +1610,244 @@ def get_total_exercise_calories(user_id, date_str):
     return int(result) if result else 0
 
 
+# -------------------------------------------------------------
+# Product Workflow Helpers
+# -------------------------------------------------------------
+def get_recent_foods(user_id, limit=8):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT food_name, amount_g, calories, protein, carbs, fat, MAX(logged_date) as last_logged
+        FROM food_entries
+        WHERE user_id = ?
+        GROUP BY food_name, amount_g, calories, protein, carbs, fat
+        ORDER BY last_logged DESC
+        LIMIT ?
+    ''', (user_id, limit))
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def add_favorite_food(user_id, food_name, food_id=None):
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            INSERT OR IGNORE INTO favorite_foods (user_id, food_id, food_name)
+            VALUES (?, ?, ?)
+        ''', (user_id, food_id, food_name.strip()))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+def get_favorite_foods(user_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT ff.*, f.calories_per_100g, f.protein_per_100g, f.carbs_per_100g, f.fat_per_100g
+        FROM favorite_foods ff
+        LEFT JOIN foods f ON ff.food_id = f.id
+        WHERE ff.user_id = ?
+        ORDER BY ff.created_at DESC
+    ''', (user_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def create_meal_template(user_id, name, entries):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO meal_templates (user_id, name, entries_json)
+        VALUES (?, ?, ?)
+    ''', (user_id, name.strip(), json.dumps(entries)))
+    conn.commit()
+    template_id = cursor.lastrowid
+    conn.close()
+    return template_id
+
+def get_meal_templates(user_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT * FROM meal_templates
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+    ''', (user_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    templates = []
+    for row in rows:
+        item = dict(row)
+        item['entries'] = json.loads(item.pop('entries_json') or '[]')
+        templates.append(item)
+    return templates
+
+def save_recipe(user_id, name, servings, ingredients, totals):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO recipes (user_id, name, servings, ingredients_json, calories, protein, carbs, fat)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        user_id,
+        name.strip(),
+        int(servings or 1),
+        json.dumps(ingredients),
+        int(totals.get('calories', 0)),
+        int(totals.get('protein', 0)),
+        int(totals.get('carbs', 0)),
+        int(totals.get('fat', 0))
+    ))
+    conn.commit()
+    recipe_id = cursor.lastrowid
+    conn.close()
+    return recipe_id
+
+def get_recipes(user_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT * FROM recipes
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+    ''', (user_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    recipes = []
+    for row in rows:
+        item = dict(row)
+        item['ingredients'] = json.loads(item.pop('ingredients_json') or '[]')
+        recipes.append(item)
+    return recipes
+
+def save_meal_plan(user_id, week_start, plan, shopping):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO meal_plans (user_id, week_start, plan_json, shopping_json)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(user_id, week_start)
+        DO UPDATE SET plan_json = excluded.plan_json,
+                      shopping_json = excluded.shopping_json,
+                      created_at = CURRENT_TIMESTAMP
+    ''', (user_id, week_start, json.dumps(plan), json.dumps(shopping)))
+    conn.commit()
+    conn.close()
+    return True
+
+def get_latest_meal_plan(user_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT * FROM meal_plans
+        WHERE user_id = ?
+        ORDER BY week_start DESC, created_at DESC
+        LIMIT 1
+    ''', (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+    plan = dict(row)
+    plan['plan'] = json.loads(plan.pop('plan_json') or '{}')
+    plan['shopping'] = json.loads(plan.pop('shopping_json') or '[]')
+    return plan
+
+def assign_client_coach(user_id, coach_id, tags=None):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        UPDATE users
+        SET coach_id = ?, client_tags = ?
+        WHERE id = ? AND is_admin = 0
+    ''', (coach_id, json.dumps(tags or []), user_id))
+    conn.commit()
+    success = cursor.rowcount > 0
+    conn.close()
+    return success
+
+def add_checkin(user_id, mood, energy, hunger, compliance, notes):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO checkins (user_id, mood, energy, hunger, compliance, notes)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (user_id, mood, energy, hunger, compliance, notes))
+    conn.commit()
+    checkin_id = cursor.lastrowid
+    conn.close()
+    return checkin_id
+
+def get_checkins(user_id, limit=8):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT * FROM checkins
+        WHERE user_id = ?
+        ORDER BY checked_at DESC
+        LIMIT ?
+    ''', (user_id, limit))
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def add_thread_message(sender_id, receiver_id, message):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO coach_threads (sender_id, receiver_id, message)
+        VALUES (?, ?, ?)
+    ''', (sender_id, receiver_id, message.strip()))
+    conn.commit()
+    message_id = cursor.lastrowid
+    conn.close()
+    return message_id
+
+def get_thread_messages(user_id, other_user_id=None, limit=50):
+    conn = get_db()
+    cursor = conn.cursor()
+    params = [user_id, user_id]
+    clause = "(sender_id = ? OR receiver_id = ?)"
+    if other_user_id:
+        clause = "((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?))"
+        params = [user_id, other_user_id, other_user_id, user_id]
+    cursor.execute(f'''
+        SELECT ct.*, s.username as sender_username, r.username as receiver_username
+        FROM coach_threads ct
+        JOIN users s ON ct.sender_id = s.id
+        JOIN users r ON ct.receiver_id = r.id
+        WHERE {clause}
+        ORDER BY ct.created_at DESC
+        LIMIT ?
+    ''', (*params, limit))
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def add_target_history(user_id, admin_id, calories, protein, carbs, fat, reason):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO target_history (user_id, admin_id, calories, protein, carbs, fat, reason)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (user_id, admin_id, calories, protein, carbs, fat, reason))
+    conn.commit()
+    conn.close()
+    return True
+
+def get_target_history(user_id, limit=10):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT th.*, u.username as admin_username
+        FROM target_history th
+        LEFT JOIN users u ON th.admin_id = u.id
+        WHERE th.user_id = ?
+        ORDER BY th.created_at DESC
+        LIMIT ?
+    ''', (user_id, limit))
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]

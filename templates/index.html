@@ -193,7 +193,13 @@
                                     </div>
                                     <div class="form-group-small" style="width: 100%; display: flex; align-items: center; gap: 10px;">
                                         <input type="number" id="food-log-amount" placeholder="Amount (g)" min="1" value="100" class="number-input-small" style="flex: 1; box-sizing: border-box; height: 38px;">
-                                        <span style="color: var(--text-secondary); font-size: 14px;">grams</span>
+                                        <select id="food-serving-unit" class="styled-select serving-select">
+                                            <option value="g">grams</option>
+                                            <option value="cup">cup</option>
+                                            <option value="tbsp">tbsp</option>
+                                            <option value="oz">oz</option>
+                                            <option value="piece">piece</option>
+                                        </select>
                                     </div>
                                     <!-- Live Preview Overlay -->
                                     <div class="food-live-preview hidden" id="food-live-preview" style="margin-top: 14px; padding: 12px; border-radius: 8px; background: rgba(99, 102, 241, 0.08); border: 1px dashed rgba(99, 102, 241, 0.2); display: flex; justify-content: space-between; align-items: center;">
@@ -228,6 +234,15 @@
                                         </div>
                                     </div>
                                 </div>
+
+                                <div class="food-logger-options">
+                                    <label class="inline-checkbox">
+                                        <input type="checkbox" id="food-log-favorite">
+                                        <span>Save as favorite</span>
+                                    </label>
+                                    <button type="button" class="btn-mini-action" id="btn-save-current-template">Save Today as Template</button>
+                                </div>
+                                <div class="logging-shortcuts" id="logging-shortcuts"></div>
 
                                 <button type="submit" class="btn-quick-food" style="margin-top: 16px; width: 100%;">
                                     <i data-lucide="plus"></i>
@@ -433,6 +448,42 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="panel-card intelligence-card">
+                        <div class="card-header-row">
+                            <h3>Progress Intelligence</h3>
+                            <span class="score-pill" id="adherence-score-pill">0</span>
+                        </div>
+                        <div class="insight-grid">
+                            <div><span>Streak</span><strong id="insight-streak">0 days</strong></div>
+                            <div><span>Macro Consistency</span><strong id="insight-macro-consistency">0%</strong></div>
+                            <div><span>Goal ETA</span><strong id="insight-goal-eta">--</strong></div>
+                        </div>
+                        <p class="insight-copy" id="insight-why">Log meals and weights to unlock trend explanations.</p>
+                    </div>
+
+                    <div class="panel-card meal-plan-card">
+                        <div class="card-header-row">
+                            <h3>Weekly Meal Plan</h3>
+                            <button type="button" class="btn-mini-action" id="btn-generate-meal-plan">Generate</button>
+                        </div>
+                        <div id="meal-plan-preview" class="meal-plan-preview">
+                            <p class="empty-inbox-text">Generate a macro-aware weekly plan and shopping list from your current targets.</p>
+                        </div>
+                        <div class="shopping-list-preview" id="shopping-list-preview"></div>
+                    </div>
+
+                    <div class="panel-card checkin-card">
+                        <h3>Coach Check-In</h3>
+                        <form id="client-checkin-form" class="mini-form-grid">
+                            <input type="number" id="checkin-mood" min="1" max="5" value="3" class="number-input-small" title="Mood 1-5">
+                            <input type="number" id="checkin-energy" min="1" max="5" value="3" class="number-input-small" title="Energy 1-5">
+                            <input type="number" id="checkin-hunger" min="1" max="5" value="3" class="number-input-small" title="Hunger 1-5">
+                            <input type="number" id="checkin-compliance" min="1" max="5" value="3" class="number-input-small" title="Compliance 1-5">
+                            <textarea id="checkin-notes" placeholder="Short note for your coach..." class="styled-textarea mini-textarea"></textarea>
+                            <button type="submit" class="btn-submit btn-compact-submit">Send Check-In</button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -443,8 +494,8 @@
                 <!-- Left Panel: User Input Form -->
                 <section class="panel-card input-panel">
                     <div class="panel-header">
-                        <h2>Profile Settings</h2>
-                        <p>Manage your biometric parameters and health configurations.</p>
+                        <h2>Client Nutrition Setup</h2>
+                        <p>Build precise calorie, macro, hydration, and micronutrient targets for daily coaching.</p>
                     </div>
 
                     <div class="profile-settings-avatar-card">
@@ -453,9 +504,66 @@
                         </div>
                         <div class="profile-avatar-details">
                             <h3 id="settings-profile-username">User Profile</h3>
-                            <span class="badge badge-premium">Standard Client</span>
+                            <span class="badge badge-premium">Managed Client</span>
                         </div>
                     </div>
+
+                    <form id="onboarding-form" class="onboarding-card">
+                        <div class="card-header-row">
+                            <h3>Guided Onboarding</h3>
+                            <span class="tier-badge tier-premium" id="onboarding-status-badge">setup</span>
+                        </div>
+                        <div class="form-row-2">
+                            <div class="form-group-small">
+                                <label for="onboarding-dietary-style">Diet Style</label>
+                                <select id="onboarding-dietary-style" class="styled-select">
+                                    <option value="balanced">Balanced</option>
+                                    <option value="high_protein">High Protein</option>
+                                    <option value="vegetarian">Vegetarian</option>
+                                    <option value="vegan">Vegan</option>
+                                    <option value="low_carb">Low Carb</option>
+                                </select>
+                            </div>
+                            <div class="form-group-small">
+                                <label for="onboarding-cuisine">Region / Cuisine</label>
+                                <select id="onboarding-cuisine" class="styled-select">
+                                    <option value="global">Global</option>
+                                    <option value="south_asian">South Asian</option>
+                                    <option value="mediterranean">Mediterranean</option>
+                                    <option value="middle_eastern">Middle Eastern</option>
+                                    <option value="western">Western</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row-2">
+                            <div class="form-group-small">
+                                <label for="onboarding-schedule">Meal Schedule</label>
+                                <select id="onboarding-schedule" class="styled-select">
+                                    <option value="standard">3 meals/day</option>
+                                    <option value="small_frequent">4 smaller meals/day</option>
+                                    <option value="training_day">Training-day focused</option>
+                                </select>
+                            </div>
+                            <div class="form-group-small">
+                                <label for="onboarding-coaching-level">Coaching Level</label>
+                                <select id="onboarding-coaching-level" class="styled-select">
+                                    <option value="self_guided">Self-guided</option>
+                                    <option value="light_touch">Light coach review</option>
+                                    <option value="weekly_coaching">Weekly coaching</option>
+                                    <option value="clinical_review">Clinical/dietitian review</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group-small">
+                            <label for="onboarding-allergies">Allergies / Avoidances</label>
+                            <input type="text" id="onboarding-allergies" class="styled-input-text" placeholder="e.g. peanuts, shellfish, lactose">
+                        </div>
+                        <button type="submit" class="btn-secondary-action onboarding-save-btn">
+                            <i data-lucide="check-circle-2"></i>
+                            <span>Save Onboarding</span>
+                        </button>
+                        <div id="onboarding-status" class="status-banner hidden"></div>
+                    </form>
 
                     <form id="nutrition-form" novalidate>
                         <!-- Unit Toggle -->
@@ -593,17 +701,23 @@
                             </select>
                         </div>
                         
-                        <!-- Subscription Tier Selection -->
-                        <div class="form-group" id="subscription-tier-group" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 20px; margin-top: 20px; margin-bottom: 24px;">
-                            <label for="user-subscription-tier">Subscription Plan Tier</label>
-                            <div style="display: flex; gap: 12px; align-items: center; width: 100%;">
-                                <select id="user-subscription-tier" name="subscription_tier" class="styled-select" style="flex: 1; height: 38px;">
+                        <!-- Managed Subscription Status -->
+                        <div class="form-group plan-status-card" id="subscription-tier-group">
+                            <div class="plan-status-header">
+                                <label for="user-subscription-tier">Managed Plan Status</label>
+                                <span class="tier-badge tier-free" id="user-current-tier-badge">free</span>
+                            </div>
+                            <select id="user-subscription-tier" name="subscription_tier" class="styled-select plan-tier-readonly" disabled aria-readonly="true">
                                     <option value="free">Free Plan ($0/mo)</option>
                                     <option value="premium">Premium Plan ($29/mo)</option>
                                     <option value="enterprise">Enterprise Plan ($99/mo)</option>
-                                </select>
-                                <span class="tier-badge tier-free" id="user-current-tier-badge" style="height: 38px; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; padding: 0 16px; border-radius: 8px; text-transform: uppercase;">free</span>
-                            </div>
+                            </select>
+                            <ul class="plan-feature-list" id="user-plan-feature-list">
+                                <li>Nutrition calculator</li>
+                                <li>Daily calorie and macro targets</li>
+                                <li>Basic weight tracking</li>
+                            </ul>
+                            <p class="plan-manage-hint" id="user-plan-manage-hint">Create an account to save targets and unlock client tracking workflows.</p>
                         </div>
 
                         <button type="submit" class="btn-submit" id="btn-submit">
@@ -620,8 +734,8 @@
                         <div class="pulse-icon-container">
                             <i data-lucide="activity" class="pulse-icon"></i>
                         </div>
-                        <h3>Awaiting Intelligence</h3>
-                        <p>Enter your profile metrics and hit calculate to generate your daily energy expenditure, macronutrient targets, and essential micronutrient recommendations.</p>
+                        <h3>Ready for Client Setup</h3>
+                        <p>Enter profile metrics to generate coach-ready energy, macronutrient, hydration, and micronutrient targets.</p>
                     </div>
 
                     <!-- Loading State View -->
@@ -1151,6 +1265,38 @@
                                 </form>
                                 <div id="admin-message-status" class="status-banner hidden"></div>
                             </div>
+
+                            <div class="admin-coach-workflow-box">
+                                <h3>Coach Portal Workflow</h3>
+                                <div class="form-row-2">
+                                    <div class="form-group-small">
+                                        <label for="admin-client-tags">Client Tags</label>
+                                        <input type="text" id="admin-client-tags" class="styled-input-text" placeholder="fat-loss, high-touch, weekly">
+                                    </div>
+                                    <div class="form-group-small">
+                                        <label for="admin-coach-id">Coach ID</label>
+                                        <input type="number" id="admin-coach-id" class="number-input-small" placeholder="Admin ID">
+                                    </div>
+                                </div>
+                                <div class="coach-workflow-actions">
+                                    <button type="button" class="btn-secondary-action" id="btn-assign-coach">
+                                        <i data-lucide="user-plus"></i>
+                                        <span>Assign Coach</span>
+                                    </button>
+                                    <button type="button" class="btn-secondary-action" id="btn-export-weekly-report">
+                                        <i data-lucide="file-down"></i>
+                                        <span>Export Weekly Report</span>
+                                    </button>
+                                </div>
+                                <div id="admin-weekly-report-output" class="report-output hidden"></div>
+                                <div class="private-thread-box">
+                                    <textarea id="admin-thread-message" placeholder="Private thread message..." class="styled-textarea"></textarea>
+                                    <button type="button" class="btn-submit btn-compact-submit" id="btn-send-thread-message">Send Private Thread</button>
+                                    <div id="admin-thread-list" class="thread-list"></div>
+                                </div>
+                                <div id="admin-target-history-list" class="target-history-list"></div>
+                                <div id="admin-coach-workflow-status" class="status-banner hidden"></div>
+                            </div>
                         </div>
                     </section>
                 </div>
@@ -1430,7 +1576,8 @@
             isLoggedIn: {% if user %}true{% else %}false{% endif %},
             username: {% if user %}"{{ user.username }}"{% else %}null{% endif %},
             userId: {% if user %}{{ user.id }}{% else %}null{% endif %},
-            isAdmin: {% if user and user.is_admin %}true{% else %}false{% endif %}
+            isAdmin: {% if user and user.is_admin %}true{% else %}false{% endif %},
+            subscriptionTier: {% if user and user.subscription_tier %}"{{ user.subscription_tier }}"{% else %}"free"{% endif %}
         };
     </script>
     <!-- Project JavaScript Controller -->
